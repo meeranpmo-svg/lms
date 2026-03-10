@@ -30,8 +30,9 @@ function rootPath() {
   return '';
 }
 
-function redirectAfterLogin(role) {
-  const base = window.location.href.replace(/\/[^/]*$/, '/').replace(/\/lms\/.*/, '/lms/');
+function redirectAfterLogin(role) {const pathname = window.location.pathname;
+const base = window.location.origin + pathname.substring(0, pathname.lastIndexOf('/') + 1);
+);
   if (role === 'admin')   window.location.href = base + 'admin/dashboard.html';
   else if (role === 'teacher') window.location.href = base + 'teacher/dashboard.html';
   else window.location.href = base + 'student/dashboard.html';
