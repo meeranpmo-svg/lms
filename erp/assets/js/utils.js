@@ -57,6 +57,8 @@ function buildSidebar(activePage) {
     { page:'transport',  icon:'🚌', label:'Transport',         href:'transport.html' },
     { page:'cctv',       icon:'📹', label:'CCTV Monitor',      href:'cctv.html' },
     { page:'programs',   icon:'📚', label:'Programs',          href:'programs.html' },
+    { section: 'System' },
+    { page:'backup',     icon:'💾', label:'Backup & Restore',  href:'backup.html' },
   ];
 
   const branchOptions = BRANCHES.map(b =>

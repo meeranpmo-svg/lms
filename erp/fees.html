@@ -246,6 +246,10 @@
     f.payMode = document.getElementById('pay-mode-sel').value;
     f.receiptNo = generateReceiptNo();
 
+    // Sync back to global FEE_RECORDS and persist
+    FEE_RECORDS.length = 0;
+    feeRecords.forEach(r => FEE_RECORDS.push(r));
+    _saveStored('asks_erp_fees', FEE_RECORDS);
     closeModal('collectModal');
     showReceipt(f.id);
     renderStats(); renderFees();

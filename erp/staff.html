@@ -162,7 +162,7 @@
     const name = document.getElementById('new-name').value;
     if (!name) { showToast('Please enter staff name', 'danger'); return; }
     const newStaff = {
-      id: 'S' + String(Date.now()).slice(-4),
+      id: nextStaffId(),
       branchId: getCurrentBranchId(),
       name, role: document.getElementById('new-role').value,
       dept: document.getElementById('new-dept').value,
@@ -175,6 +175,8 @@
       status: 'active', att: 'P',
     };
     allStaff.push(newStaff);
+    STAFF.push(newStaff);
+    _saveStored('asks_erp_staff', STAFF);
     closeModal('addStaffModal');
     renderStaff(); renderStats();
     showToast(`${name} added successfully!`, 'success');

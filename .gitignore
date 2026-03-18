@@ -1,0 +1,59 @@
+# ─── OS Files ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# ─── Windows Batch Files (local dev only) ────────────────────────────
+*.bat
+*.ps1
+
+# ─── Local Server Files ──────────────────────────────────────────────
+server.pl
+server.ps1
+serve_test.pl
+
+# ─── Backup Archives (don't commit backups to git) ───────────────────
+backups/
+*.tar.gz
+*.tar.bz2
+*.zip
+backup_manifest.log
+restore_tmp_*/
+erp_backup_*/
+lms_backup_*/
+
+# ─── Node / Build Artifacts ──────────────────────────────────────────
+node_modules/
+dist/
+build/
+.cache/
+
+# ─── Environment Files ───────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.env
+
+# ─── IDE / Editor ────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.code-workspace
+
+# ─── Docker local overrides ──────────────────────────────────────────
+docker-compose.override.yml
+docker-compose.local.yml
+
+# ─── Logs ────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Certificates / Secrets ──────────────────────────────────────────
+*.pem
+*.key
+*.crt
+*.p12
+certs/
+ssl/

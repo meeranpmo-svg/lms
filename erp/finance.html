@@ -203,6 +203,8 @@
       ref: document.getElementById('entry-ref').value || `REF-${Date.now().toString().slice(-6)}`,
     };
     ledger.push(newEntry);
+    LEDGER.push(newEntry);
+    _saveStored('asks_erp_ledger', LEDGER);
     closeModal('addEntryModal');
     renderStats(); renderLedger(); renderCharts();
     showToast(`${entryType==='income'?'Income':'Expense'} added: ${currencyINR(amount)}`, 'success');

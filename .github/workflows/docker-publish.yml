@@ -1,0 +1,159 @@
+name: Build & Publish Docker Images
+
+# =====================================================================
+# Ansha Shine Kids School — CI/CD Pipeline
+# Builds ERP + LMS Docker images and pushes to GitHub Container Registry
+# Images: ghcr.io/<your-github-username>/ansha-erp
+#         ghcr.io/<your-github-username>/ansha-lms
+# =====================================================================
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "erp/**"
+      - "lms/**"
+      - "docker-compose.yml"
+      - ".github/workflows/docker-publish.yml"
+  pull_request:
+    branches:
+      - main
+      - master
+  # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  # Uses the repo owner's GitHub username automatically
+  IMAGE_OWNER: ${{ github.repository_owner }}
+
+jobs:
+
+  # ─────────────────────────────────────────────────────────────────
+  # JOB 1: Build & Push ERP Image
+  # ─────────────────────────────────────────────────────────────────
+  build-erp:
+    name: Build ERP Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata (ERP)
+        id: meta-erp
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/ansha-erp
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ERP image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./erp
+          file: ./erp/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta-erp.outputs.tags }}
+          labels: ${{ steps.meta-erp.outputs.labels }}
+          cache-from: type=gha,scope=erp
+          cache-to: type=gha,mode=max,scope=erp
+
+  # ─────────────────────────────────────────────────────────────────
+  # JOB 2: Build & Push LMS Image
+  # ─────────────────────────────────────────────────────────────────
+  build-lms:
+    name: Build LMS Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata (LMS)
+        id: meta-lms
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/ansha-lms
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push LMS image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./lms
+          file: ./lms/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta-lms.outputs.tags }}
+          labels: ${{ steps.meta-lms.outputs.labels }}
+          cache-from: type=gha,scope=lms
+          cache-to: type=gha,mode=max,scope=lms
+
+  # ─────────────────────────────────────────────────────────────────
+  # JOB 3: Deploy summary (runs after both builds succeed)
+  # ─────────────────────────────────────────────────────────────────
+  deploy-summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [build-erp, build-lms]
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Print deployment info
+        run: |
+          echo "=============================================="
+          echo "  Ansha Shine Kids School — Deploy Complete"
+          echo "=============================================="
+          echo ""
+          echo "  ERP Image:"
+          echo "  ghcr.io/${{ env.IMAGE_OWNER }}/ansha-erp:latest"
+          echo ""
+          echo "  LMS Image:"
+          echo "  ghcr.io/${{ env.IMAGE_OWNER }}/ansha-lms:latest"
+          echo ""
+          echo "  To run on your server:"
+          echo "  docker pull ghcr.io/${{ env.IMAGE_OWNER }}/ansha-erp:latest"
+          echo "  docker pull ghcr.io/${{ env.IMAGE_OWNER }}/ansha-lms:latest"
+          echo "  docker compose up -d"
+          echo ""
+          echo "  ERP:  http://your-server:8081"
+          echo "  LMS:  http://your-server:3000"
+          echo "=============================================="

@@ -364,16 +364,46 @@
 
   function submitAdmission(e) {
     e.preventDefault();
-    const fname = document.getElementById('fname').value;
-    const lname = document.getElementById('lname').value;
-    const prog = document.getElementById('program').value;
+    const fname = document.getElementById('fname').value.trim();
+    const lname = document.getElementById('lname').value.trim();
+    const prog  = document.getElementById('program').value;
     if (!fname || !lname || !prog) { showToast('Please fill all required fields', 'danger'); return; }
 
-    const branch = getBranchById(getCurrentBranchId());
-    const year = new Date().getFullYear();
-    const admNo = `ASKS/${branch?.id||'B001'}/${year}-${String(Math.floor(Math.random()*900)+100)}`;
+    const branchId = getCurrentBranchId();
+    const branch   = getBranchById(branchId);
+    const year     = new Date().getFullYear();
+    const admNo    = `ASKS/${branch?.id||'B001'}/${year}-${String(Math.floor(Math.random()*900)+100)}`;
+    const progData = getProgramByCode(prog);
+    const mname    = document.getElementById('mname').value.trim();
+    const fullName = [fname, mname, lname].filter(Boolean).join(' ');
 
-    document.getElementById('success-msg').textContent = `${fname} ${lname} has been admitted to ${branch?.name || 'the branch'} successfully.`;
+    const newStudent = {
+      id:           nextStudentId(),
+      branchId,
+      admNo,
+      name:         fullName,
+      gender:       document.getElementById('gender').value || 'M',
+      dob:          document.getElementById('dob').value || '',
+      program:      prog,
+      programName:  progData?.name || prog,
+      section:      document.getElementById('section').value || 'A',
+      bloodGroup:   document.getElementById('blood-group').value || '',
+      parentName:   document.getElementById('father-name').value || '',
+      parentPhone:  document.getElementById('father-phone').value || '',
+      parentEmail:  document.getElementById('father-email').value || '',
+      address:      document.getElementById('address').value || '',
+      admDate:      document.getElementById('adm-date').value || new Date().toISOString().slice(0,10),
+      status:       'active',
+      monthlyFee:   progData?.monthlyFee || 3000,
+      transport:    null,
+      feeStatus:    'pending',
+      photoInit:    (fname[0]||'') + (lname[0]||''),
+    };
+
+    STUDENTS.push(newStudent);
+    _saveStored('asks_erp_students', STUDENTS);
+
+    document.getElementById('success-msg').textContent = `${fullName} has been admitted to ${branch?.name || 'the branch'} successfully.`;
     document.getElementById('success-adm-no').textContent = '📋 Admission No: ' + admNo;
     openModal('successModal');
   }

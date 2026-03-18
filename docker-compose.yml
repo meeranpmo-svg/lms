@@ -1,0 +1,97 @@
+version: "3.9"
+
+# =====================================================================
+# Ansha Shine Kids School — ERP + LMS Docker Compose
+# =====================================================================
+# Commands:
+#   Start all services:   docker compose up -d
+#   Stop all services:    docker compose down
+#   View logs:            docker compose logs -f
+#   Rebuild & restart:    docker compose up -d --build
+#   ERP only:             docker compose up -d erp
+#   LMS only:             docker compose up -d lms
+# =====================================================================
+
+services:
+
+  # ─── ERP ─────────────────────────────────────────────────────────
+  erp:
+    build:
+      context: ./erp
+      dockerfile: Dockerfile
+    image: ansha-erp:latest
+    container_name: ansha-erp
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    volumes:
+      # Named volume for backup exports
+      - erp-backups:/var/backups/erp
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/index.html"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.anshashine.service=erp"
+      - "com.anshashine.version=1.0"
+    networks:
+      - ansha-net
+
+  # ─── LMS ─────────────────────────────────────────────────────────
+  lms:
+    build:
+      context: ./lms
+      dockerfile: Dockerfile
+    image: ansha-lms:latest
+    container_name: ansha-lms
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      # Named volume for backup exports
+      - lms-backups:/var/backups/lms
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/index.html"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.anshashine.service=lms"
+      - "com.anshashine.version=1.0"
+    networks:
+      - ansha-net
+
+  # ─── Nginx Reverse Proxy (optional — for single-domain hosting) ──
+  # Uncomment this section if you want both apps behind one domain:
+  # erp → yourdomain.com/erp/
+  # lms → yourdomain.com/lms/
+  #
+  # proxy:
+  #   image: nginx:alpine
+  #   container_name: ansha-proxy
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+  #     - ./proxy/certs:/etc/nginx/certs:ro
+  #   depends_on:
+  #     - erp
+  #     - lms
+  #   networks:
+  #     - ansha-net
+
+volumes:
+  erp-backups:
+    driver: local
+  lms-backups:
+    driver: local
+
+networks:
+  ansha-net:
+    driver: bridge
+    name: ansha-shine-network
