@@ -60,7 +60,7 @@
 <script src="../assets/js/utils.js"></script>
 <script>
 const user = initPage('admin');
-if (user) renderReports();
+if (user) { sbSyncToLocal(user.id, 'admin').then(renderReports).catch(renderReports); }
 
 function renderReports() {
   const students   = getUsersByRole('student');

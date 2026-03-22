@@ -81,7 +81,7 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Course Fee (PKR)</label>
+          <label class="form-label">Course Fee (INR)</label>
           <input type="number" id="c-fee" class="form-control" placeholder="e.g. 10000">
         </div>
       </div>
@@ -110,7 +110,7 @@
 <script src="../assets/js/utils.js"></script>
 <script>
 const user = initPage('admin');
-if (user) renderPage();
+if (user) { sbSyncToLocal(user.id, 'admin').then(renderPage).catch(renderPage); }
 
 function renderPage() {
   populateTeachers();

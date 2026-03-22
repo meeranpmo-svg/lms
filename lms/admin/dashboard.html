@@ -131,7 +131,10 @@
 <script src="../assets/js/utils.js"></script>
 <script>
 const user = initPage('admin');
-if (user) renderPage();
+if (user) {
+  // Sync from Supabase first, then render
+  sbSyncToLocal(user.id, 'admin').then(renderPage).catch(renderPage);
+}
 
 function renderPage() {
   renderStats();
@@ -154,7 +157,7 @@ function renderStats() {
     { icon: '👩‍🎓', label: 'Total Students', value: users.filter(u => u.role === 'student').length, color: 'teal', change: '↑ +2 this month', dir: 'up' },
     { icon: '📚', label: 'Active Courses', value: courses.length, color: 'gold', change: '4 courses available', dir: '' },
     { icon: '📋', label: 'Total Enrollments', value: enrollments.length, color: 'blue', change: `${fees} fees collected`, dir: 'up' },
-    { icon: '💰', label: 'Revenue (PKR)', value: formatCurrency(feeRevenue), color: 'green', change: `${enrollments.filter(e => e.feeStatus === 'pending').length} pending`, dir: '' },
+    { icon: '💰', label: 'Revenue (INR)', value: formatCurrency(feeRevenue), color: 'green', change: `${enrollments.filter(e => e.feeStatus === 'pending').length} pending`, dir: '' },
   ];
 
   document.getElementById('stats-grid').innerHTML = stats.map(s => `

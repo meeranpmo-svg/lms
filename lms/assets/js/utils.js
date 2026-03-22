@@ -107,7 +107,7 @@ function capitalize(str) {
   return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
 }
 function formatCurrency(amount) {
-  return 'Rs. ' + Number(amount).toLocaleString('en-PK');
+  return '₹' + Number(amount).toLocaleString('en-IN');
 }
 
 /* ---- Avatar helper ---- */

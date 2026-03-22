@@ -81,7 +81,7 @@
 <script src="../assets/js/utils.js"></script>
 <script>
 const user = initPage('admin');
-if (user) renderPage();
+if (user) { sbSyncToLocal(user.id, 'admin').then(renderPage).catch(renderPage); }
 
 function renderPage() { renderTeachers(); }
 

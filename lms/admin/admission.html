@@ -185,7 +185,7 @@ const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 let allRegistrations = [];
 
 const user = initPage('admin');
-if (user) renderPage();
+if (user) { sbSyncToLocal(user.id, 'admin').then(renderPage).catch(renderPage); }
 
 function renderPage() {
   document.getElementById('search-input').addEventListener('input', applyFilters);

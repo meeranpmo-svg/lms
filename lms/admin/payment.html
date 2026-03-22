@@ -100,7 +100,7 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Amount (PKR) *</label>
+          <label class="form-label">Amount (INR) *</label>
           <input type="number" id="p-amount" class="form-control" placeholder="0">
         </div>
         <div class="form-group">
@@ -142,7 +142,7 @@
 <script src="../assets/js/utils.js"></script>
 <script>
 const user = initPage('admin');
-if (user) renderPage();
+if (user) { sbSyncToLocal(user.id, 'admin').then(renderPage).catch(renderPage); }
 
 function renderPage() {
   // Set today's date as default
@@ -175,22 +175,21 @@ function populateCourses() {
 
 function renderStats() {
   const payments = dbGet(DB.PAYMENTS);
-  const enrollments = dbGet(DB.ENROLLMENTS);
+  // Parse balance from description: "... | Balance: ₹10000"
   const totalCollected = payments.reduce((s, p) => s + (p.amount || 0), 0);
-  const totalDue = enrollments.reduce((s, e) => {
-    const c = dbGetOne(DB.COURSES, e.courseId);
-    return s + (c ? c.fee : 0);
+  const totalBalance = payments.reduce((s, p) => {
+    const m = (p.description || '').match(/Balance: ₹(\d+)/);
+    return s + (m ? parseInt(m[1]) : 0);
   }, 0);
-  const pending = enrollments.filter(e => e.feeStatus === 'pending').reduce((s, e) => {
-    const c = dbGetOne(DB.COURSES, e.courseId);
-    return s + (c ? c.fee : 0);
-  }, 0);
+  const totalFee = totalCollected + totalBalance;
+  const paidCount = payments.filter(p => p.status === 'paid').length;
+  const partialCount = payments.filter(p => p.status === 'partial').length;
 
   document.getElementById('pay-stats').innerHTML = `
-    <div class="stat-card"><div class="stat-icon green">💰</div><div class="stat-info"><div class="stat-value">${formatCurrency(totalCollected)}</div><div class="stat-label">Total Collected</div></div></div>
-    <div class="stat-card"><div class="stat-icon gold">⏳</div><div class="stat-info"><div class="stat-value">${formatCurrency(pending)}</div><div class="stat-label">Pending Fees</div></div></div>
-    <div class="stat-card"><div class="stat-icon blue">📋</div><div class="stat-info"><div class="stat-value">${payments.length}</div><div class="stat-label">Transactions</div></div></div>
-    <div class="stat-card"><div class="stat-icon teal">📊</div><div class="stat-info"><div class="stat-value">${formatCurrency(totalDue)}</div><div class="stat-label">Total Fee Due</div></div></div>`;
+    <div class="stat-card"><div class="stat-icon green">💰</div><div class="stat-info"><div class="stat-value">₹${totalCollected.toLocaleString('en-IN')}</div><div class="stat-label">Total Collected</div></div></div>
+    <div class="stat-card"><div class="stat-icon gold">⏳</div><div class="stat-info"><div class="stat-value">₹${totalBalance.toLocaleString('en-IN')}</div><div class="stat-label">Balance Pending</div></div></div>
+    <div class="stat-card"><div class="stat-icon teal">📊</div><div class="stat-info"><div class="stat-value">₹${totalFee.toLocaleString('en-IN')}</div><div class="stat-label">Total Fee Charged</div></div></div>
+    <div class="stat-card"><div class="stat-icon blue">📋</div><div class="stat-info"><div class="stat-value">${paidCount} paid · ${partialCount} partial</div><div class="stat-label">Payment Status</div></div></div>`;
 }
 
 function renderPendingAlerts() {

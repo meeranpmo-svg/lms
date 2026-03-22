@@ -72,7 +72,7 @@
 const user = initPage('admin');
 let activeTab = 'quizzes';
 
-if (user) renderPage();
+if (user) { sbSyncToLocal(user.id, 'admin').then(renderPage).catch(renderPage); }
 
 function renderPage() {
   populateFilters();
