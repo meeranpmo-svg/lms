@@ -309,7 +309,7 @@ function updatePdfPreview(val) {
   const wrap = document.getElementById('pdf-preview-wrap');
   const a    = document.getElementById('pdf-preview-anchor');
   wrap.style.display = val ? 'flex' : 'none';
-  if (val) a.href = val.startsWith('http') ? val : `https://anshamontessori-lms.github.io/online/${val}`;
+  if (val) a.href = val.startsWith('http') ? val : `https://radiant-naiad-98e62b.netlify.app/lms/${val}`;
 }
 
 function clearPdf() {
@@ -398,7 +398,7 @@ function updatePmPreview(val) {
   const wrap = document.getElementById('pm-preview-wrap');
   const a    = document.getElementById('pm-preview-anchor');
   wrap.style.display = val ? 'block' : 'none';
-  if (val) a.href = val.startsWith('http') ? val : `https://anshamontessori-lms.github.io/online/${val}`;
+  if (val) a.href = val.startsWith('http') ? val : `https://radiant-naiad-98e62b.netlify.app/lms/${val}`;
 }
 
 function savePdfLink() {
@@ -427,7 +427,7 @@ function deleteLesson(id, title) {
 
 /* ── Preview ── */
 function openPdfPreview(pdfPath) {
-  const fullUrl = pdfPath.startsWith('http') ? pdfPath : `https://anshamontessori-lms.github.io/online/${pdfPath}`;
+  const fullUrl = pdfPath.startsWith('http') ? pdfPath : `https://radiant-naiad-98e62b.netlify.app/lms/${pdfPath}`;
   const bd = document.createElement('div');
   bd.className = 'modal-backdrop active';
   bd.innerHTML = `
@@ -467,9 +467,9 @@ function previewLesson(id) {
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--gray-200);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <span class="font-semibold text-sm">📄 PDF Material</span>
-            <a href="${l.pdf.startsWith('http')?l.pdf:'https://anshamontessori-lms.github.io/online/'+l.pdf}" download class="btn btn-outline btn-sm">⬇️ Download</a>
+            <a href="${l.pdf.startsWith('http')?l.pdf:'https://radiant-naiad-98e62b.netlify.app/lms/'+l.pdf}" download class="btn btn-outline btn-sm">⬇️ Download</a>
           </div>
-          <iframe src="https://docs.google.com/viewer?url=${encodeURIComponent(l.pdf.startsWith('http')?l.pdf:'https://anshamontessori-lms.github.io/online/'+l.pdf)}&embedded=true"
+          <iframe src="https://docs.google.com/viewer?url=${encodeURIComponent(l.pdf.startsWith('http')?l.pdf:'https://radiant-naiad-98e62b.netlify.app/lms/'+l.pdf)}&embedded=true"
             width="100%" height="400px" style="border:1px solid var(--gray-200);border-radius:var(--radius);display:block;"></iframe>
         </div>` : ''}
       </div>

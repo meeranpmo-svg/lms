@@ -247,6 +247,11 @@ function initSeedData() {
     { id: 'l11', courseId: 'c4', module: 'Child Development Stages', title: "Piaget's Stages of Cognitive Development", type: 'video', url: 'https://www.youtube.com/embed/TRF27F2bn-A', duration: '22 min', order: 1 },
     { id: 'l12', courseId: 'c4', module: 'Cognitive Development', title: 'Understanding How Children Learn', type: 'text', content: '<h3>How Children Learn</h3><p>Understanding the cognitive processes in children helps educators create more effective learning experiences.</p><h4>Key Learning Theories:</h4><ul><li><strong>Constructivism (Piaget)</strong>: Children build knowledge through active exploration</li><li><strong>Social Learning (Vygotsky)</strong>: Learning happens through social interaction and the Zone of Proximal Development (ZPD)</li><li><strong>Behaviorism (Skinner)</strong>: Learning through reinforcement and reward</li><li><strong>Multiple Intelligences (Gardner)</strong>: 8 types of intelligence beyond IQ</li></ul><h4>Practical Implications:</h4><p>Use hands-on activities, collaborative projects, positive reinforcement, and varied teaching strategies to accommodate different learning styles.</p>', duration: '25 min', order: 2 },
     { id: 'l13', courseId: 'c4', module: 'Emotional & Social Development', title: 'Emotional Intelligence in Children', type: 'video', url: 'https://www.youtube.com/embed/Y7m9eNoB3NU', duration: '18 min', order: 3 },
+    // Course Books (PDF only)
+    { id: 'lb1', courseId: 'c1', module: 'Course Books', title: 'AMT-001: Pre-School Management', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 10, pdf: 'assets/pdfs/amt-001-preschool-management.pdf' },
+    { id: 'lb2', courseId: 'c4', module: 'Course Books', title: 'AMT-002: Foundations of Educational Psychology', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 10, pdf: 'assets/pdfs/amt-002-educational-psychology.pdf' },
+    { id: 'lb3', courseId: 'c1', module: 'Course Books', title: 'AMT-003: Montessori Philosophy and Method', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 11, pdf: 'assets/pdfs/amt-003-montessori-philosophy.pdf' },
+    { id: 'lb4', courseId: 'c1', module: 'Course Books', title: 'AMT-004: Pre-School Education', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 12, pdf: 'assets/pdfs/amt-004-preschool-education.pdf' },
   ];
   dbSet(DB.LESSONS, lessons);
 
@@ -378,3 +383,15 @@ function initSeedData() {
 
 // Auto-init on load
 initSeedData();
+
+/* ---- Migration: add course books if not present ---- */
+(function migrateBooks() {
+  const books = [
+    { id: 'lb1', courseId: 'c1', module: 'Course Books', title: 'AMT-001: Pre-School Management', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 10, pdf: 'assets/pdfs/amt-001-preschool-management.pdf' },
+    { id: 'lb2', courseId: 'c4', module: 'Course Books', title: 'AMT-002: Foundations of Educational Psychology', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 10, pdf: 'assets/pdfs/amt-002-educational-psychology.pdf' },
+    { id: 'lb3', courseId: 'c1', module: 'Course Books', title: 'AMT-003: Montessori Philosophy and Method', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 11, pdf: 'assets/pdfs/amt-003-montessori-philosophy.pdf' },
+    { id: 'lb4', courseId: 'c1', module: 'Course Books', title: 'AMT-004: Pre-School Education', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 12, pdf: 'assets/pdfs/amt-004-preschool-education.pdf' },
+  ];
+  const existing = dbGet(DB.LESSONS).map(l => l.id);
+  books.forEach(b => { if (!existing.includes(b.id)) dbSave(DB.LESSONS, b); });
+})();
