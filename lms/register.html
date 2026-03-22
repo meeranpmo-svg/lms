@@ -194,6 +194,33 @@
     }
     .course-card.selected .course-check { display: flex; }
 
+    /* ── Student Type Toggle ── */
+    .type-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .type-option {
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .type-option:hover { border-color: var(--primary); background: #f0fdfa; }
+    .type-option.selected {
+      border-color: var(--primary);
+      background: #e6faf8;
+      box-shadow: 0 0 0 2px rgba(13,148,136,0.2);
+    }
+    .type-option input[type="radio"] { display: none; }
+    .type-icon { font-size: 1.3rem; }
+    .type-text { font-size: 0.83rem; font-weight: 600; color: var(--gray-700); }
+
     /* ── Submit ── */
     .btn-submit {
       width: 100%;
@@ -399,6 +426,48 @@
           </label>
         </div>
 
+        <!-- Enrollment Details -->
+        <div class="section-label">Enrollment Details</div>
+
+        <!-- Student Type -->
+        <div class="form-group">
+          <label>Student Type <span class="req">*</span></label>
+          <div class="type-toggle">
+            <label class="type-option selected" id="type-new-label" onclick="selectType('new')">
+              <input type="radio" name="Student Type" value="New Student" checked>
+              <span class="type-icon">🆕</span>
+              <span class="type-text">New Student</span>
+            </label>
+            <label class="type-option" id="type-old-label" onclick="selectType('old')">
+              <input type="radio" name="Student Type" value="Existing Student">
+              <span class="type-icon">🎓</span>
+              <span class="type-text">Existing / Old Student</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Date of Joining (Old students only) -->
+        <div class="form-group" id="doj-group" style="display:none;margin-top:14px;">
+          <label>Date of Joining</label>
+          <input type="date" name="Date of Joining" id="doj-input">
+        </div>
+
+        <!-- Exam Date -->
+        <div class="form-group" style="margin-top:14px;">
+          <label id="exam-date-label">Exam Date <span class="req">*</span></label>
+          <input type="date" name="Exam Date" id="exam-date-input" required>
+          <span id="exam-date-hint" style="font-size:0.75rem;color:#6b7280;margin-top:3px;">Enter your upcoming exam date</span>
+        </div>
+
+        <!-- Fees Paid -->
+        <div class="form-group" style="margin-top:14px;">
+          <label>Fees Amount Paid (PKR) <span class="req">*</span></label>
+          <div style="position:relative;">
+            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#6b7280;font-size:0.85rem;font-weight:500;">Rs.</span>
+            <input type="number" name="Fees Paid (PKR)" placeholder="e.g. 5000" min="0" style="padding-left:36px;" required>
+          </div>
+        </div>
+
         <!-- Additional Info -->
         <div class="section-label">Additional Information</div>
 
@@ -435,6 +504,23 @@
   <div class="reg-footer">© 2025 Ansha Montessori Teacher Training Institute</div>
 
   <script>
+    function selectType(type) {
+      document.getElementById('type-new-label').classList.toggle('selected', type === 'new');
+      document.getElementById('type-old-label').classList.toggle('selected', type === 'old');
+      const dojGroup = document.getElementById('doj-group');
+      const examLabel = document.getElementById('exam-date-label');
+      const examHint  = document.getElementById('exam-date-hint');
+      if (type === 'old') {
+        dojGroup.style.display = 'block';
+        examLabel.innerHTML = 'Exam Date <span class="req">*</span>';
+        examHint.textContent = 'Enter the date you wrote / last wrote the exam';
+      } else {
+        dojGroup.style.display = 'none';
+        examLabel.innerHTML = 'Exam Date <span class="req">*</span>';
+        examHint.textContent = 'Enter your upcoming exam date';
+      }
+    }
+
     function selectCourse(card, name) {
       document.querySelectorAll('.course-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
@@ -462,9 +548,12 @@
 
       // Collect data
       const data = new FormData(form);
-      const name   = data.get('Student Name');
-      const phone  = data.get('Phone');
+      const name       = data.get('Student Name');
+      const phone      = data.get('Phone');
       const courseName = data.get('Course Applied');
+      const fees       = data.get('Fees Paid (PKR)');
+      const examDate   = data.get('Exam Date');
+      const studentType = data.get('Student Type');
 
       // Submit to FormSubmit
       fetch('https://formsubmit.co/ajax/meeranpmo@gmail.com', {
@@ -475,25 +564,28 @@
       .then(res => res.json())
       .then(res => {
         if (res.success === 'true' || res.success === true) {
-          showSuccess(name, phone, courseName);
+          showSuccess(name, phone, courseName, fees, examDate, studentType);
         } else {
           showError('Submission failed. Please try again or contact the institute directly.');
         }
       })
       .catch(() => {
-        // If network fails, still show success (form data was valid)
-        showSuccess(name, phone, courseName);
+        showSuccess(name, phone, courseName, fees, examDate, studentType);
       });
     }
 
-    function showSuccess(name, phone, course) {
+    function showSuccess(name, phone, course, fees, examDate, studentType) {
       document.getElementById('reg-form').style.display = 'none';
       const screen = document.getElementById('success-screen');
       screen.style.display = 'block';
+      const fmt = d => d ? new Date(d).toLocaleDateString('en-PK', {day:'2-digit',month:'short',year:'numeric'}) : '—';
       document.getElementById('success-detail').innerHTML = `
         <div><span>Name:</span> <strong>${name}</strong></div>
         <div><span>Phone:</span> <strong>${phone}</strong></div>
         <div><span>Course:</span> <strong>${course}</strong></div>
+        <div><span>Type:</span> <strong>${studentType || '—'}</strong></div>
+        <div><span>Exam Date:</span> <strong>${fmt(examDate)}</strong></div>
+        <div><span>Fees Paid:</span> <strong>Rs. ${fees ? Number(fees).toLocaleString() : '—'}</strong></div>
         <div><span>Status:</span> <strong style="color:#10b981;">Application Received ✓</strong></div>
       `;
     }
