@@ -24,6 +24,9 @@
           <p>Track and process student admission applications</p>
         </div>
         <button class="btn btn-primary" onclick="openModal('new-admission-modal')">+ New Application</button>
+        <button class="btn btn-success" onclick="shareRegistrationLink()" style="background:#25d366;border-color:#25d366;">
+          📲 Share Registration Link
+        </button>
       </div>
 
       <!-- Stats -->
@@ -151,6 +154,25 @@
   </div>
 </div>
 
+<script>
+function shareRegistrationLink() {
+  const base = window.location.origin + window.location.pathname.replace('/admin/admission.html', '');
+  const link = base + '/register.html';
+  const msg  = encodeURIComponent(
+    '🌟 *Ansha Montessori Teacher Training Institute*\n\n' +
+    'Dear Student,\n\n' +
+    'Please fill in the registration form to apply for admission:\n\n' +
+    '📋 ' + link + '\n\n' +
+    'Courses Available:\n' +
+    '🎓 Advance Montessori Teacher Training\n' +
+    '🗣️ Spoken English\n' +
+    '📚 Phonics Training\n' +
+    '🧠 Child Psychology\n\n' +
+    'We look forward to hearing from you! 😊'
+  );
+  window.open('https://wa.me/?text=' + msg, '_blank');
+}
+</script>
 <script src="../assets/js/data.js"></script>
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/utils.js"></script>
