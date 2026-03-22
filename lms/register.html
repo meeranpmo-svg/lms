@@ -461,10 +461,10 @@
 
         <!-- Fees Paid -->
         <div class="form-group" style="margin-top:14px;">
-          <label>Fees Amount Paid (PKR) <span class="req">*</span></label>
+          <label>Fees Amount Paid (INR) <span class="req">*</span></label>
           <div style="position:relative;">
-            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#6b7280;font-size:0.85rem;font-weight:500;">Rs.</span>
-            <input type="number" name="Fees Paid (PKR)" placeholder="e.g. 5000" min="0" style="padding-left:36px;" required>
+            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#6b7280;font-size:0.85rem;font-weight:500;">₹</span>
+            <input type="number" name="Fees Paid (INR)" placeholder="e.g. 5000" min="0" style="padding-left:36px;" required>
           </div>
         </div>
 
@@ -551,7 +551,7 @@
       const name       = data.get('Student Name');
       const phone      = data.get('Phone');
       const courseName = data.get('Course Applied');
-      const fees       = data.get('Fees Paid (PKR)');
+      const fees       = data.get('Fees Paid (INR)');
       const examDate   = data.get('Exam Date');
       const studentType = data.get('Student Type');
 
@@ -585,7 +585,7 @@
         <div><span>Course:</span> <strong>${course}</strong></div>
         <div><span>Type:</span> <strong>${studentType || '—'}</strong></div>
         <div><span>Exam Date:</span> <strong>${fmt(examDate)}</strong></div>
-        <div><span>Fees Paid:</span> <strong>Rs. ${fees ? Number(fees).toLocaleString() : '—'}</strong></div>
+        <div><span>Fees Paid:</span> <strong>₹${fees ? Number(fees).toLocaleString() : '—'}</strong></div>
         <div><span>Status:</span> <strong style="color:#10b981;">Application Received ✓</strong></div>
       `;
     }
