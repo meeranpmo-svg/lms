@@ -148,10 +148,9 @@ function renderStats() {
   const enrollments = dbGet(DB.ENROLLMENTS);
   const courses = dbGet(DB.COURSES);
   const fees = enrollments.filter(e => e.feeStatus === 'paid').length;
-  const feeRevenue = enrollments.filter(e => e.feeStatus === 'paid').reduce((sum, e) => {
-    const c = dbGetOne(DB.COURSES, e.courseId);
-    return sum + (c ? c.fee : 0);
-  }, 0);
+  // Sum actual collected amounts from fees table (amount = what was paid)
+  const payments = dbGet(DB.PAYMENTS);
+  const feeRevenue = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
   const stats = [
     { icon: '👩‍🎓', label: 'Total Students', value: users.filter(u => u.role === 'student').length, color: 'teal', change: '↑ +2 this month', dir: 'up' },
