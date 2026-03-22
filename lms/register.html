@@ -6,6 +6,7 @@
   <title>Student Registration — Ansha Montessori</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -566,16 +567,20 @@
       card.classList.add('selected');
     }
 
-    function submitForm(e) {
+    const SUPA_URL = 'https://twzcefikdychhsjwjekf.supabase.co';
+    const SUPA_KEY = 'sb_publishable_GijBRmulhuyIp3bigyhMUw_hVmQiB0y';
+    const supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+    async function submitForm(e) {
       e.preventDefault();
 
-      const form = document.getElementById('reg-form');
+      const form    = document.getElementById('reg-form');
       const errorEl = document.getElementById('error-msg');
       errorEl.style.display = 'none';
 
       // Validate course selected
-      const course = form.querySelector('input[name="Course Applied"]:checked');
-      if (!course) {
+      const courseInput = form.querySelector('input[name="Course Applied"]:checked');
+      if (!courseInput) {
         errorEl.textContent = 'Please select a course to apply for.';
         errorEl.style.display = 'block';
         return;
@@ -586,7 +591,6 @@
       document.getElementById('btn-spinner').style.display = 'inline';
       document.getElementById('submit-btn').disabled = true;
 
-      // Collect data
       const data = new FormData(form);
       const name        = data.get('Student Name');
       const phone       = data.get('Phone');
@@ -595,24 +599,41 @@
       const examDate    = data.get('Exam Date');
       const studentType = data.get('Student Type');
       const username    = data.get('Preferred Username');
+      const doj         = data.get('Date of Joining');
+      const reason      = data.get('Reason for Discontinuation');
+      const reasonDet   = data.get('Discontinuation Details');
 
-      // Submit to FormSubmit
-      fetch('https://formsubmit.co/ajax/meeranpmo@gmail.com', {
-        method: 'POST',
-        headers: { 'Accept': 'application/json' },
-        body: data
-      })
-      .then(res => res.json())
-      .then(res => {
-        if (res.success === 'true' || res.success === true) {
-          showSuccess(name, phone, courseName, fees, examDate, studentType, username);
-        } else {
-          showError('Submission failed. Please try again or contact the institute directly.');
-        }
-      })
-      .catch(() => {
-        showSuccess(name, phone, courseName, fees, examDate, studentType, username);
-      });
+      // Build record for Supabase
+      const record = {
+        student_name:                name,
+        fathers_name:                data.get('Fathers Name'),
+        date_of_birth:               data.get('Date of Birth') || null,
+        gender:                      data.get('Gender'),
+        cnic:                        data.get('CNIC'),
+        phone:                       phone,
+        email:                       data.get('Email'),
+        address:                     data.get('Address'),
+        course_applied:              courseName,
+        student_type:                studentType,
+        date_of_joining:             doj || null,
+        reason_for_discontinuation:  reason || null,
+        discontinuation_details:     reasonDet || null,
+        exam_date:                   examDate || null,
+        fees_paid:                   fees ? Number(fees) : null,
+        preferred_username:          username,
+        source:                      data.get('Source'),
+        notes:                       data.get('Notes'),
+        status:                      'pending'
+      };
+
+      const { error } = await supabase.from('registrations').insert(record);
+
+      if (error) {
+        showError('Submission failed: ' + error.message + '. Please try again or contact the institute.');
+        return;
+      }
+
+      showSuccess(name, phone, courseName, fees, examDate, studentType, username);
     }
 
     function showSuccess(name, phone, course, fees, examDate, studentType, username) {

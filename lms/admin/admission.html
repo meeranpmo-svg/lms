@@ -173,151 +173,202 @@ function shareRegistrationLink() {
   window.open('https://wa.me/?text=' + msg, '_blank');
 }
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../assets/js/data.js"></script>
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/utils.js"></script>
 <script>
+const SUPA_URL = 'https://twzcefikdychhsjwjekf.supabase.co';
+const SUPA_KEY = 'sb_publishable_GijBRmulhuyIp3bigyhMUw_hVmQiB0y';
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let allRegistrations = [];
+
 const user = initPage('admin');
 if (user) renderPage();
 
 function renderPage() {
-  const courses = dbGet(DB.COURSES);
-  const opts = courses.map(c => `<option value="${c.id}">${c.icon} ${c.title}</option>`).join('');
-  document.getElementById('filter-course').innerHTML += opts;
-  document.getElementById('a-course').innerHTML += opts;
-  document.getElementById('search-input').addEventListener('input', renderTable);
-  document.getElementById('filter-course').addEventListener('change', renderTable);
-  document.getElementById('filter-status').addEventListener('change', renderTable);
+  document.getElementById('search-input').addEventListener('input', applyFilters);
+  document.getElementById('filter-course').addEventListener('change', applyFilters);
+  document.getElementById('filter-status').addEventListener('change', applyFilters);
+  loadFromSupabase();
+}
+
+async function loadFromSupabase() {
+  document.getElementById('adm-table').innerHTML =
+    '<tr><td colspan="7" class="text-center text-muted" style="padding:2rem;">Loading…</td></tr>';
+
+  const { data, error } = await sb
+    .from('registrations')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    document.getElementById('adm-table').innerHTML =
+      `<tr><td colspan="7" class="text-center text-muted" style="padding:2rem;">Error: ${error.message}</td></tr>`;
+    return;
+  }
+
+  allRegistrations = data || [];
   renderStats();
-  renderTable();
+  applyFilters();
 }
 
 function renderStats() {
-  const admissions = dbGet(DB.ADMISSIONS);
-  const pending  = admissions.filter(a => a.status === 'pending').length;
-  const approved = admissions.filter(a => a.status === 'approved').length;
-  const rejected = admissions.filter(a => a.status === 'rejected').length;
+  const pending  = allRegistrations.filter(a => a.status === 'pending').length;
+  const approved = allRegistrations.filter(a => a.status === 'approved').length;
+  const rejected = allRegistrations.filter(a => a.status === 'rejected').length;
   document.getElementById('adm-stats').innerHTML = `
     <div class="stat-card"><div class="stat-icon gold">⏳</div><div class="stat-info"><div class="stat-value">${pending}</div><div class="stat-label">Pending</div></div></div>
     <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><div class="stat-value">${approved}</div><div class="stat-label">Approved</div></div></div>
     <div class="stat-card"><div class="stat-icon" style="background:#fee2e2;">❌</div><div class="stat-info"><div class="stat-value">${rejected}</div><div class="stat-label">Rejected</div></div></div>`;
 }
 
-function renderTable() {
-  const searchQ  = document.getElementById('search-input').value.toLowerCase();
-  const courseF  = document.getElementById('filter-course').value;
-  const statusF  = document.getElementById('filter-status').value;
+function applyFilters() {
+  const searchQ = document.getElementById('search-input').value.toLowerCase();
+  const courseF = document.getElementById('filter-course').value;
+  const statusF = document.getElementById('filter-status').value;
 
-  let list = dbGet(DB.ADMISSIONS);
-  if (courseF)  list = list.filter(a => a.course === courseF);
-  if (statusF)  list = list.filter(a => a.status === statusF);
-  if (searchQ)  list = list.filter(a =>
-    a.studentName.toLowerCase().includes(searchQ) ||
-    (a.email || '').toLowerCase().includes(searchQ)
+  let list = allRegistrations;
+  if (courseF) list = list.filter(a => a.course_applied === courseF);
+  if (statusF) list = list.filter(a => a.status === statusF);
+  if (searchQ) list = list.filter(a =>
+    (a.student_name || '').toLowerCase().includes(searchQ) ||
+    (a.phone || '').includes(searchQ) ||
+    (a.preferred_username || '').toLowerCase().includes(searchQ)
   );
 
   const statusColors = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
-  const rows = list.map(a => {
-    const course = dbGetOne(DB.COURSES, a.course);
-    return `<tr>
-      <td><div class="font-medium">${a.studentName}</div><div class="text-xs text-muted">${a.email || '—'}</div></td>
-      <td class="text-sm">${a.fatherName || '—'}</td>
-      <td class="text-sm">${a.phone || '—'}</td>
-      <td class="text-sm">${course ? course.icon + ' ' + course.title : '—'}</td>
-      <td class="text-sm text-muted">${formatDate(a.appliedAt)}</td>
-      <td><span class="badge ${statusColors[a.status] || 'badge-gray'}">${capitalize(a.status)}</span></td>
-      <td>
-        <div class="flex gap-2">
-          <button class="btn btn-outline btn-sm" onclick="viewAdmission('${a.id}')">View</button>
-          ${a.status === 'pending' ? `
-            <button class="btn btn-success btn-sm" onclick="updateStatus('${a.id}','approved')">✓ Approve</button>
-            <button class="btn btn-danger btn-sm" onclick="updateStatus('${a.id}','rejected')">✕ Reject</button>` : ''}
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-  document.getElementById('adm-table').innerHTML = rows || '<tr><td colspan="7" class="text-center text-muted" style="padding:2rem;">No applications found</td></tr>';
+  const rows = list.map(a => `<tr>
+    <td>
+      <div class="font-medium">${a.student_name}</div>
+      <div class="text-xs text-muted">${a.preferred_username ? '@' + a.preferred_username : '—'}</div>
+    </td>
+    <td class="text-sm">${a.fathers_name || '—'}</td>
+    <td class="text-sm">${a.phone || '—'}</td>
+    <td class="text-sm">${a.course_applied || '—'}</td>
+    <td class="text-sm text-muted">${a.created_at ? new Date(a.created_at).toLocaleDateString('en-IN') : '—'}</td>
+    <td><span class="badge ${statusColors[a.status] || 'badge-gray'}">${capitalize(a.status)}</span></td>
+    <td>
+      <div class="flex gap-2">
+        <button class="btn btn-outline btn-sm" onclick="viewAdmission('${a.id}')">View</button>
+        ${a.status === 'pending' ? `
+          <button class="btn btn-success btn-sm" onclick="updateStatus('${a.id}','approved')">✓ Approve</button>
+          <button class="btn btn-danger btn-sm" onclick="updateStatus('${a.id}','rejected')">✕ Reject</button>` : ''}
+      </div>
+    </td>
+  </tr>`).join('');
+
+  document.getElementById('adm-table').innerHTML = rows ||
+    '<tr><td colspan="7" class="text-center text-muted" style="padding:2rem;">No applications found</td></tr>';
 }
 
-function saveAdmission() {
+async function saveAdmission() {
   const name   = document.getElementById('a-name').value.trim();
   const father = document.getElementById('a-father').value.trim();
   const phone  = document.getElementById('a-phone').value.trim();
   const course = document.getElementById('a-course').value;
   if (!name || !phone || !course) { showToast('Name, phone, and course are required', 'error'); return; }
 
-  const adm = {
-    id: genId(), studentName: name, fatherName: father,
-    dob: document.getElementById('a-dob').value,
+  const { error } = await sb.from('registrations').insert({
+    student_name: name, fathers_name: father,
+    dob: document.getElementById('a-dob').value || null,
     gender: document.getElementById('a-gender').value,
     cnic: document.getElementById('a-cnic').value.trim(),
     phone, email: document.getElementById('a-email').value.trim(),
     address: document.getElementById('a-address').value.trim(),
     notes: document.getElementById('a-notes').value.trim(),
-    course, appliedAt: new Date().toISOString(), status: 'pending', linkedUserId: null
-  };
-  dbSave(DB.ADMISSIONS, adm);
+    course_applied: course, status: 'pending'
+  });
+
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
   closeModal('new-admission-modal');
   document.getElementById('new-admission-modal').querySelectorAll('input,select,textarea').forEach(el => el.value = '');
-  renderStats(); renderTable();
   showToast(`Application for ${name} submitted!`, 'success');
+  loadFromSupabase();
 }
 
-function updateStatus(id, status) {
-  const a = dbGetOne(DB.ADMISSIONS, id);
-  if (!a) return;
-  a.status = status;
-  dbSave(DB.ADMISSIONS, a);
+function genPassword(username) {
+  const suffix = Math.floor(1000 + Math.random() * 9000);
+  return (username || 'student') + '@' + suffix;
+}
 
-  // If approved, create student account if not exists
-  if (status === 'approved' && !a.linkedUserId && a.email) {
-    if (!findUserByEmail(a.email)) {
-      const newStudent = {
-        id: genId(), name: a.studentName, fatherName: a.fatherName,
-        dob: a.dob, gender: a.gender, cnic: a.cnic,
-        phone: a.phone, email: a.email, address: a.address,
-        password: 'student123', role: 'student', avatar: '👩‍🎓',
-        createdAt: new Date().toISOString()
-      };
-      dbSave(DB.USERS, newStudent);
-      enrollStudent(newStudent.id, a.course);
-      a.linkedUserId = newStudent.id;
-      dbSave(DB.ADMISSIONS, a);
-      showToast(`${a.studentName} approved & student account created!`, 'success');
-    } else {
-      showToast(`Application ${status}`, 'success');
-    }
-  } else {
-    showToast(`Application ${status}`, status === 'approved' ? 'success' : 'warning');
+async function updateStatus(id, status) {
+  const a = allRegistrations.find(r => r.id === id);
+  if (!a) return;
+
+  const updates = { status };
+  if (status === 'approved' && !a.login_password) {
+    updates.login_password = genPassword(a.preferred_username);
   }
-  renderStats(); renderTable();
+
+  const { error } = await sb.from('registrations').update(updates).eq('id', id);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+
+  if (status === 'approved') {
+    const pwd = updates.login_password || a.login_password;
+    showToast(`✅ ${a.student_name} approved!`, 'success');
+    // Show credentials modal
+    showCredentials(a.student_name, a.preferred_username, pwd, a.phone);
+  } else {
+    showToast(`Application rejected`, 'warning');
+  }
+  loadFromSupabase();
+}
+
+function showCredentials(name, username, password, phone) {
+  const msg = `🎉 *Congratulations ${name}!*\n\nYour admission to Ansha Montessori has been approved.\n\n*LMS Login Credentials:*\n🔗 ${window.location.origin.replace('/admin','')}/index.html\n👤 Username: ${username}\n🔒 Password: ${password}\n\nPlease login and change your password after first login.\n\n_Ansha Montessori Teacher Training Institute_`;
+
+  document.getElementById('adm-detail-body').innerHTML = `
+    <div style="text-align:center;padding:8px 0 16px;">
+      <div style="font-size:2.5rem;margin-bottom:8px;">🎉</div>
+      <h3 style="color:#10b981;margin-bottom:4px;">Student Approved!</h3>
+      <p style="color:#6b7280;font-size:0.85rem;">Share these credentials with the student</p>
+    </div>
+    <div style="background:#f9fafb;border-radius:10px;padding:16px;font-size:0.88rem;line-height:1.8;">
+      <div><span style="color:#6b7280;">Name:</span> <strong>${name}</strong></div>
+      <div><span style="color:#6b7280;">Username:</span> <strong style="color:#0d9488;">${username}</strong></div>
+      <div><span style="color:#6b7280;">Password:</span> <strong style="color:#f59e0b;">${password}</strong></div>
+    </div>`;
+
+  document.getElementById('adm-detail-actions').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal('view-admission-modal')">Close</button>
+    <button class="btn btn-primary" onclick="window.open('https://wa.me/${phone ? phone.replace(/\D/g,'') : ''}?text=${encodeURIComponent(msg)}','_blank')">
+      📲 Send via WhatsApp
+    </button>`;
+  openModal('view-admission-modal');
 }
 
 function viewAdmission(id) {
-  const a = dbGetOne(DB.ADMISSIONS, id);
+  const a = allRegistrations.find(r => r.id === id);
   if (!a) return;
-  const course = dbGetOne(DB.COURSES, a.course);
   const statusColors = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
+  const fmt = d => d ? new Date(d).toLocaleDateString('en-IN') : '—';
+
   document.getElementById('adm-detail-body').innerHTML = `
     <div class="grid grid-2" style="gap:var(--space-4);font-size:0.875rem;">
-      <div><span class="text-muted">Name:</span><br><strong>${a.studentName}</strong></div>
-      <div><span class="text-muted">Father:</span><br><strong>${a.fatherName || '—'}</strong></div>
-      <div><span class="text-muted">DOB:</span><br><strong>${a.dob || '—'}</strong></div>
+      <div><span class="text-muted">Name:</span><br><strong>${a.student_name}</strong></div>
+      <div><span class="text-muted">Father:</span><br><strong>${a.fathers_name || '—'}</strong></div>
+      <div><span class="text-muted">DOB:</span><br><strong>${fmt(a.date_of_birth)}</strong></div>
       <div><span class="text-muted">Gender:</span><br><strong>${a.gender || '—'}</strong></div>
-      <div><span class="text-muted">CNIC:</span><br><strong>${a.cnic || '—'}</strong></div>
       <div><span class="text-muted">Phone:</span><br><strong>${a.phone || '—'}</strong></div>
-      <div><span class="text-muted">Email:</span><br><strong>${a.email || '—'}</strong></div>
-      <div><span class="text-muted">Course:</span><br><strong>${course ? course.icon + ' ' + course.title : '—'}</strong></div>
-      <div style="grid-column:1/-1;"><span class="text-muted">Address:</span><br><strong>${a.address || '—'}</strong></div>
-      <div style="grid-column:1/-1;"><span class="text-muted">Notes:</span><br><strong>${a.notes || '—'}</strong></div>
-      <div><span class="text-muted">Applied:</span><br><strong>${formatDate(a.appliedAt)}</strong></div>
-      <div><span class="text-muted">Status:</span><br><span class="badge" style="background:${statusColors[a.status]}20;color:${statusColors[a.status]}">${capitalize(a.status)}</span></div>
+      <div><span class="text-muted">Course:</span><br><strong>${a.course_applied || '—'}</strong></div>
+      <div><span class="text-muted">Student Type:</span><br><strong>${a.student_type || '—'}</strong></div>
+      <div><span class="text-muted">Fees Paid:</span><br><strong>₹${a.fees_paid ? Number(a.fees_paid).toLocaleString('en-IN') : '—'}</strong></div>
+      <div><span class="text-muted">Exam Date:</span><br><strong>${fmt(a.exam_date)}</strong></div>
+      <div><span class="text-muted">Username:</span><br><strong style="color:#0d9488;">@${a.preferred_username || '—'}</strong></div>
+      ${a.reason_for_discontinuation ? `<div style="grid-column:1/-1;"><span class="text-muted">Reason for Discontinuation:</span><br><strong>${a.reason_for_discontinuation}</strong>${a.discontinuation_details ? '<br><span style="color:#6b7280;font-size:0.8rem;">' + a.discontinuation_details + '</span>' : ''}</div>` : ''}
+      <div style="grid-column:1/-1;"><span class="text-muted">Applied:</span> <strong>${fmt(a.created_at)}</strong> &nbsp;|&nbsp; <span class="text-muted">Status:</span> <span class="badge" style="background:${statusColors[a.status]}20;color:${statusColors[a.status]}">${capitalize(a.status)}</span></div>
+      ${a.status === 'approved' && a.login_password ? `<div style="grid-column:1/-1;background:#ecfdf5;border-radius:8px;padding:10px;"><span class="text-muted">Login Credentials:</span><br><strong>Username:</strong> ${a.preferred_username} &nbsp; <strong>Password:</strong> ${a.login_password}</div>` : ''}
     </div>`;
+
   document.getElementById('adm-detail-actions').innerHTML = `
     <button class="btn btn-ghost" onclick="closeModal('view-admission-modal')">Close</button>
     ${a.status === 'pending' ? `
       <button class="btn btn-success" onclick="updateStatus('${a.id}','approved');closeModal('view-admission-modal')">✓ Approve</button>
-      <button class="btn btn-danger" onclick="updateStatus('${a.id}','rejected');closeModal('view-admission-modal')">✕ Reject</button>` : ''}`;
+      <button class="btn btn-danger" onclick="updateStatus('${a.id}','rejected');closeModal('view-admission-modal')">✕ Reject</button>` : ''}
+    ${a.status === 'approved' && a.login_password ? `
+      <button class="btn btn-primary" onclick="window.open('https://wa.me/${a.phone ? a.phone.replace(/\D/g,'') : ''}?text=${encodeURIComponent('🎉 *Your LMS Login*\nUsername: ' + a.preferred_username + '\nPassword: ' + a.login_password)}','_blank')">📲 Resend Credentials</button>` : ''}`;
   openModal('view-admission-modal');
 }
 </script>
