@@ -161,17 +161,22 @@ function setActiveNav() {
 function buildSidebar(user) {
   const adminNav = `
     <div class="nav-section-title">Main</div>
-    <a href="dashboard.html" class="nav-item"><span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span> Dashboard</a>
-    <a href="students.html"  class="nav-item"><span class="nav-icon"><i class="fa-solid fa-user-graduate"></i></span> Students</a>
-    <a href="teachers.html"  class="nav-item"><span class="nav-icon"><i class="fa-solid fa-chalkboard-user"></i></span> Teachers</a>
+    <a href="dashboard.html"    class="nav-item"><span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span> Dashboard</a>
+    <a href="teachers.html"     class="nav-item"><span class="nav-icon"><i class="fa-solid fa-chalkboard-user"></i></span> Teachers</a>
+    <div class="nav-section-title">Students</div>
+    <a href="student-info.html" class="nav-item"><span class="nav-icon"><i class="fa-solid fa-id-card"></i></span> Student Information</a>
+    <a href="admission.html"    class="nav-item"><span class="nav-icon"><i class="fa-solid fa-file-circle-plus"></i></span> Admission</a>
     <div class="nav-section-title">Academic</div>
-    <a href="courses.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-book-open"></i></span> Courses</a>
-    <a href="lessons.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-video"></i></span> Lessons & PDFs</a>
-    <a href="results.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-trophy"></i></span> Exam Results</a>
-    <a href="fees.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-coins"></i></span> Fee Management</a>
-    <a href="reports.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span> Reports</a>
+    <a href="courses.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-book-open"></i></span> Courses</a>
+    <a href="lessons.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-video"></i></span> Lessons & PDFs</a>
+    <a href="results.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-trophy"></i></span> Exam Results</a>
+    <div class="nav-section-title">Finance</div>
+    <a href="payment.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-receipt"></i></span> Payment</a>
+    <a href="expenses.html"     class="nav-item"><span class="nav-icon"><i class="fa-solid fa-arrow-trend-down"></i></span> Expenses</a>
+    <a href="profit-loss.html"  class="nav-item"><span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span> Profit & Loss</a>
     <div class="nav-section-title">System</div>
-    <a href="backup.html"    class="nav-item"><span class="nav-icon"><i class="fa-solid fa-database"></i></span> Backup & Restore</a>`;
+    <a href="reports.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-file-chart-column"></i></span> Reports</a>
+    <a href="backup.html"       class="nav-item"><span class="nav-icon"><i class="fa-solid fa-database"></i></span> Backup & Restore</a>`;
 
   const teacherNav = `
     <div class="nav-section-title">Main</div>

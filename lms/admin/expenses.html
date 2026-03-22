@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expenses — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Expenses</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div>
+          <h1>Expense Management</h1>
+          <p>Track all institute expenses and expenditures</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('add-expense-modal')">+ Add Expense</button>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid" id="exp-stats" style="grid-template-columns:repeat(4,1fr);"></div>
+
+      <!-- Category Breakdown -->
+      <div class="card mt-4">
+        <div class="card-header"><h2>Breakdown by Category</h2></div>
+        <div class="card-body">
+          <div id="category-bars" class="grid grid-2" style="gap:var(--space-4);"></div>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <div class="filter-bar mt-4">
+        <div class="search-input">
+          <span>🔍</span>
+          <input type="text" id="search-input" placeholder="Search by description or paid to…">
+        </div>
+        <select class="form-control" id="filter-category" style="width:auto;min-width:160px;">
+          <option value="">All Categories</option>
+          <option value="salary">Salary</option>
+          <option value="rent">Rent</option>
+          <option value="utilities">Utilities</option>
+          <option value="supplies">Supplies</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="other">Other</option>
+        </select>
+        <select class="form-control" id="filter-month" style="width:auto;min-width:150px;">
+          <option value="">All Months</option>
+        </select>
+      </div>
+
+      <!-- Expenses Table -->
+      <div class="card mt-4">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Paid To</th>
+                <th>Amount</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="exp-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Add Expense Modal -->
+<div class="modal-backdrop" id="add-expense-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h3>Add Expense</h3>
+      <button class="modal-close" onclick="closeModal('add-expense-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category *</label>
+          <select id="e-category" class="form-control">
+            <option value="salary">👥 Salary</option>
+            <option value="rent">🏢 Rent</option>
+            <option value="utilities">💡 Utilities</option>
+            <option value="supplies">📦 Supplies</option>
+            <option value="maintenance">🔧 Maintenance</option>
+            <option value="other">📌 Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Amount (PKR) *</label>
+          <input type="number" id="e-amount" class="form-control" placeholder="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description *</label>
+        <input type="text" id="e-desc" class="form-control" placeholder="Brief description of expense">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Paid To</label>
+          <input type="text" id="e-paid-to" class="form-control" placeholder="Vendor / person name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date *</label>
+          <input type="date" id="e-date" class="form-control">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('add-expense-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveExpense()">Save Expense</button>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const CATEGORY_META = {
+  salary:      { label: 'Salary',      icon: '👥', color: '#7c3aed' },
+  rent:        { label: 'Rent',        icon: '🏢', color: '#0d9488' },
+  utilities:   { label: 'Utilities',   icon: '💡', color: '#f59e0b' },
+  supplies:    { label: 'Supplies',    icon: '📦', color: '#3b82f6' },
+  maintenance: { label: 'Maintenance', icon: '🔧', color: '#ef4444' },
+  other:       { label: 'Other',       icon: '📌', color: '#6b7280' },
+};
+
+const user = initPage('admin');
+if (user) renderPage();
+
+function renderPage() {
+  document.getElementById('e-date').value = new Date().toISOString().split('T')[0];
+  populateMonthFilter();
+  document.getElementById('search-input').addEventListener('input', renderTable);
+  document.getElementById('filter-category').addEventListener('change', renderTable);
+  document.getElementById('filter-month').addEventListener('change', renderTable);
+  renderStats();
+  renderCategoryBars();
+  renderTable();
+}
+
+function populateMonthFilter() {
+  const expenses = dbGet(DB.EXPENSES);
+  const months = [...new Set(expenses.map(e => e.date ? e.date.slice(0, 7) : ''))].filter(Boolean).sort().reverse();
+  document.getElementById('filter-month').innerHTML = '<option value="">All Months</option>' +
+    months.map(m => {
+      const d = new Date(m + '-01');
+      return `<option value="${m}">${d.toLocaleDateString('en-PK', { month: 'long', year: 'numeric' })}</option>`;
+    }).join('');
+}
+
+function renderStats() {
+  const expenses = dbGet(DB.EXPENSES);
+  const total = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const monthTotal = expenses.filter(e => (e.date || '').startsWith(thisMonth)).reduce((s, e) => s + (e.amount || 0), 0);
+  const salaryTotal = expenses.filter(e => e.category === 'salary').reduce((s, e) => s + (e.amount || 0), 0);
+  const otherTotal = total - salaryTotal;
+
+  document.getElementById('exp-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-icon" style="background:#fee2e2;">💸</div><div class="stat-info"><div class="stat-value">${formatCurrency(total)}</div><div class="stat-label">Total Expenses</div></div></div>
+    <div class="stat-card"><div class="stat-icon gold">📅</div><div class="stat-info"><div class="stat-value">${formatCurrency(monthTotal)}</div><div class="stat-label">This Month</div></div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#ede9fe;">👥</div><div class="stat-info"><div class="stat-value">${formatCurrency(salaryTotal)}</div><div class="stat-label">Salaries</div></div></div>
+    <div class="stat-card"><div class="stat-icon blue">📦</div><div class="stat-info"><div class="stat-value">${formatCurrency(otherTotal)}</div><div class="stat-label">Other Expenses</div></div></div>`;
+}
+
+function renderCategoryBars() {
+  const expenses = dbGet(DB.EXPENSES);
+  const total = expenses.reduce((s, e) => s + (e.amount || 0), 0) || 1;
+  const byCategory = {};
+  expenses.forEach(e => { byCategory[e.category] = (byCategory[e.category] || 0) + (e.amount || 0); });
+
+  document.getElementById('category-bars').innerHTML = Object.entries(CATEGORY_META).map(([key, meta]) => {
+    const amount = byCategory[key] || 0;
+    const pct = Math.round((amount / total) * 100);
+    return `
+    <div>
+      <div class="flex justify-between text-sm mb-1">
+        <span>${meta.icon} ${meta.label}</span>
+        <span class="font-semibold">${formatCurrency(amount)} <span class="text-muted">(${pct}%)</span></span>
+      </div>
+      <div class="progress"><div class="progress-bar" style="width:${pct}%;background:${meta.color};"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderTable() {
+  const searchQ  = document.getElementById('search-input').value.toLowerCase();
+  const catF     = document.getElementById('filter-category').value;
+  const monthF   = document.getElementById('filter-month').value;
+
+  let expenses = dbGet(DB.EXPENSES).slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  if (catF)   expenses = expenses.filter(e => e.category === catF);
+  if (monthF) expenses = expenses.filter(e => (e.date || '').startsWith(monthF));
+  if (searchQ) expenses = expenses.filter(e =>
+    (e.description || '').toLowerCase().includes(searchQ) ||
+    (e.paidTo || '').toLowerCase().includes(searchQ)
+  );
+
+  const rows = expenses.map(e => {
+    const meta = CATEGORY_META[e.category] || CATEGORY_META.other;
+    return `<tr>
+      <td class="text-sm text-muted">${e.date || '—'}</td>
+      <td><span class="badge" style="background:${meta.color}20;color:${meta.color};">${meta.icon} ${meta.label}</span></td>
+      <td class="text-sm">${e.description || '—'}</td>
+      <td class="text-sm text-muted">${e.paidTo || '—'}</td>
+      <td class="font-bold text-sm" style="color:#ef4444;">${formatCurrency(e.amount || 0)}</td>
+      <td>
+        <button class="btn btn-danger btn-sm" onclick="deleteExpense('${e.id}')">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const filteredTotal = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const totalRow = `<tr style="background:var(--gray-50);font-weight:600;">
+    <td colspan="4" class="text-sm">Total (${expenses.length} records)</td>
+    <td class="text-sm" style="color:#ef4444;">${formatCurrency(filteredTotal)}</td>
+    <td></td>
+  </tr>`;
+  document.getElementById('exp-table').innerHTML = rows
+    ? rows + totalRow
+    : '<tr><td colspan="6" class="text-center text-muted" style="padding:2rem;">No expenses found</td></tr>';
+}
+
+function saveExpense() {
+  const category    = document.getElementById('e-category').value;
+  const amount      = parseFloat(document.getElementById('e-amount').value);
+  const description = document.getElementById('e-desc').value.trim();
+  const date        = document.getElementById('e-date').value;
+  if (!description || !amount || !date) { showToast('Category, amount, description and date are required', 'error'); return; }
+
+  const expense = {
+    id: genId(), category, description, amount,
+    paidTo: document.getElementById('e-paid-to').value.trim(), date
+  };
+  dbSave(DB.EXPENSES, expense);
+  closeModal('add-expense-modal');
+  document.getElementById('e-amount').value = '';
+  document.getElementById('e-desc').value = '';
+  document.getElementById('e-paid-to').value = '';
+  renderStats(); renderCategoryBars(); populateMonthFilter(); renderTable();
+  showToast('Expense recorded!', 'success');
+}
+
+function deleteExpense(id) {
+  showConfirm('Delete this expense record?', () => {
+    dbDelete(DB.EXPENSES, id);
+    renderStats(); renderCategoryBars(); populateMonthFilter(); renderTable();
+    showToast('Expense deleted', 'warning');
+  }, 'Delete Expense');
+}
+</script>
+</body>
+</html>

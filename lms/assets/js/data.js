@@ -14,6 +14,9 @@ const DB = {
   PROGRESS:    'lms_progress',
   SESSION:     'lms_session',
   NOTICES:     'lms_notices',
+  ADMISSIONS:  'lms_admissions',
+  PAYMENTS:    'lms_payments',
+  EXPENSES:    'lms_expenses',
 };
 
 /* ---- Generic CRUD ---- */
@@ -163,19 +166,11 @@ function initSeedData() {
     },
     {
       id: 'u4', name: 'Ayesha Khan', email: 'ayesha@student.edu', password: 'student123',
-      role: 'student', avatar: '👩‍🎓', phone: '+92-303-4567890', createdAt: '2024-02-01T00:00:00Z'
-    },
-    {
-      id: 'u5', name: 'Sara Riaz', email: 'sara@student.edu', password: 'student123',
-      role: 'student', avatar: '👩‍🎓', phone: '+92-304-5678901', createdAt: '2024-02-05T00:00:00Z'
-    },
-    {
-      id: 'u6', name: 'Nadia Hussain', email: 'nadia@student.edu', password: 'student123',
-      role: 'student', avatar: '👩‍🎓', phone: '+92-305-6789012', createdAt: '2024-02-10T00:00:00Z'
-    },
-    {
-      id: 'u7', name: 'Mariam Sheikh', email: 'mariam@student.edu', password: 'student123',
-      role: 'student', avatar: '👩‍🎓', phone: '+92-306-7890123', createdAt: '2024-02-15T00:00:00Z'
+      role: 'student', avatar: '👩‍🎓', phone: '+92-303-4567890',
+      dob: '2000-05-15', cnic: '35202-1234567-8', gender: 'Female',
+      address: 'House 12, Street 4, Gulberg, Lahore',
+      fatherName: 'Muhammad Khan', guardianPhone: '+92-300-9876543',
+      createdAt: '2024-02-01T00:00:00Z'
     }
   ];
   dbSet(DB.USERS, users);
@@ -300,13 +295,7 @@ function initSeedData() {
   /* --- Enrollments --- */
   const enrollments = [
     { id: 'e1', studentId: 'u4', courseId: 'c1', enrolledAt: '2024-02-05T00:00:00Z', progress: 50, status: 'active', feeStatus: 'paid' },
-    { id: 'e2', studentId: 'u4', courseId: 'c3', enrolledAt: '2024-02-05T00:00:00Z', progress: 33, status: 'active', feeStatus: 'paid' },
-    { id: 'e3', studentId: 'u5', courseId: 'c1', enrolledAt: '2024-02-08T00:00:00Z', progress: 25, status: 'active', feeStatus: 'pending' },
-    { id: 'e4', studentId: 'u5', courseId: 'c2', enrolledAt: '2024-02-08T00:00:00Z', progress: 67, status: 'active', feeStatus: 'paid' },
-    { id: 'e5', studentId: 'u6', courseId: 'c4', enrolledAt: '2024-02-12T00:00:00Z', progress: 100, status: 'completed', feeStatus: 'paid' },
-    { id: 'e6', studentId: 'u6', courseId: 'c2', enrolledAt: '2024-02-12T00:00:00Z', progress: 33, status: 'active', feeStatus: 'pending' },
-    { id: 'e7', studentId: 'u7', courseId: 'c1', enrolledAt: '2024-02-18T00:00:00Z', progress: 0,  status: 'active', feeStatus: 'pending' },
-    { id: 'e8', studentId: 'u7', courseId: 'c4', enrolledAt: '2024-02-18T00:00:00Z', progress: 33, status: 'active', feeStatus: 'paid' },
+    { id: 'e2', studentId: 'u4', courseId: 'c3', enrolledAt: '2024-02-05T00:00:00Z', progress: 33, status: 'active', feeStatus: 'pending' },
   ];
   dbSet(DB.ENROLLMENTS, enrollments);
 
@@ -315,13 +304,6 @@ function initSeedData() {
     { id: 'p1', studentId: 'u4', lessonId: 'l1', completed: true, completedAt: '2024-02-10T00:00:00Z' },
     { id: 'p2', studentId: 'u4', lessonId: 'l2', completed: true, completedAt: '2024-02-12T00:00:00Z' },
     { id: 'p3', studentId: 'u4', lessonId: 'l8', completed: true, completedAt: '2024-02-14T00:00:00Z' },
-    { id: 'p4', studentId: 'u5', lessonId: 'l1', completed: true, completedAt: '2024-02-10T00:00:00Z' },
-    { id: 'p5', studentId: 'u5', lessonId: 'l5', completed: true, completedAt: '2024-02-11T00:00:00Z' },
-    { id: 'p6', studentId: 'u5', lessonId: 'l6', completed: true, completedAt: '2024-02-13T00:00:00Z' },
-    { id: 'p7', studentId: 'u6', lessonId: 'l11', completed: true, completedAt: '2024-02-13T00:00:00Z' },
-    { id: 'p8', studentId: 'u6', lessonId: 'l12', completed: true, completedAt: '2024-02-15T00:00:00Z' },
-    { id: 'p9', studentId: 'u6', lessonId: 'l13', completed: true, completedAt: '2024-02-17T00:00:00Z' },
-    { id: 'p10', studentId: 'u6', lessonId: 'l5', completed: true, completedAt: '2024-02-19T00:00:00Z' },
   ];
   dbSet(DB.PROGRESS, progress);
 
@@ -332,6 +314,47 @@ function initSeedData() {
     { id: 'n3', title: 'Assignment Submission Reminder', body: 'Please ensure all assignments are submitted before the due date. Late submissions may result in reduced marks.', type: 'normal', date: '2024-03-08T00:00:00Z' },
   ];
   dbSet(DB.NOTICES, notices);
+
+  /* --- Admissions --- */
+  const admissions = [
+    {
+      id: 'adm1', studentName: 'Ayesha Khan', fatherName: 'Muhammad Khan',
+      dob: '2000-05-15', cnic: '35202-1234567-8', gender: 'Female',
+      phone: '+92-303-4567890', email: 'ayesha@student.edu',
+      address: 'House 12, Street 4, Gulberg, Lahore',
+      course: 'c1', appliedAt: '2024-01-28T00:00:00Z',
+      status: 'approved', notes: 'Excellent academic background', linkedUserId: 'u4'
+    },
+    {
+      id: 'adm2', studentName: 'Sara Riaz', fatherName: 'Riaz Ahmed',
+      dob: '1999-11-20', cnic: '35202-7654321-0', gender: 'Female',
+      phone: '+92-304-5678901', email: 'sara.riaz@gmail.com',
+      address: 'House 5, Model Town, Lahore',
+      course: 'c2', appliedAt: '2024-02-10T00:00:00Z',
+      status: 'pending', notes: '', linkedUserId: null
+    },
+  ];
+  dbSet(DB.ADMISSIONS, admissions);
+
+  /* --- Payments --- */
+  const payments = [
+    {
+      id: 'pay1', studentId: 'u4', courseId: 'c1', amount: 15000,
+      method: 'cash', receiptNo: 'RCP-001',
+      paidAt: '2024-02-06T00:00:00Z', notes: 'Full payment received'
+    },
+  ];
+  dbSet(DB.PAYMENTS, payments);
+
+  /* --- Expenses --- */
+  const expenses = [
+    { id: 'exp1', category: 'salary', description: 'Teacher Salary — Fatima Malik (Feb)', amount: 25000, date: '2024-02-28', paidTo: 'Fatima Malik' },
+    { id: 'exp2', category: 'salary', description: 'Teacher Salary — Zainab Ahmed (Feb)', amount: 20000, date: '2024-02-28', paidTo: 'Zainab Ahmed' },
+    { id: 'exp3', category: 'utilities', description: 'Electricity Bill — February', amount: 4500, date: '2024-02-20', paidTo: 'LESCO' },
+    { id: 'exp4', category: 'supplies', description: 'Stationery & Montessori Materials', amount: 8000, date: '2024-02-15', paidTo: 'Al-Noor Traders' },
+    { id: 'exp5', category: 'rent', description: 'Office Rent — February', amount: 15000, date: '2024-02-01', paidTo: 'Landlord' },
+  ];
+  dbSet(DB.EXPENSES, expenses);
 
   localStorage.setItem('lms_seeded', 'true');
   console.log('✅ Ansha Montessori LMS: Seed data initialized');

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Information — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Student Information</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div>
+          <h1>Student Information</h1>
+          <p id="student-count">Complete profiles of all enrolled students</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('add-student-modal')">+ Add Student</button>
+      </div>
+
+      <!-- Search -->
+      <div class="filter-bar">
+        <div class="search-input">
+          <span>🔍</span>
+          <input type="text" id="search-input" placeholder="Search by name, CNIC, or phone…">
+        </div>
+        <select class="form-control" id="filter-gender" style="width:auto;min-width:130px;">
+          <option value="">All Genders</option>
+          <option value="Female">Female</option>
+          <option value="Male">Male</option>
+        </select>
+      </div>
+
+      <!-- Students Cards -->
+      <div id="students-grid" class="grid grid-2" style="gap:var(--space-4);"></div>
+    </main>
+  </div>
+</div>
+
+<!-- Add Student Modal -->
+<div class="modal-backdrop" id="add-student-modal">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <h3>Add New Student</h3>
+      <button class="modal-close" onclick="closeModal('add-student-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" id="s-name" class="form-control" placeholder="Student's full name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Father's Name *</label>
+          <input type="text" id="s-father" class="form-control" placeholder="Father's full name">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date of Birth</label>
+          <input type="date" id="s-dob" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select id="s-gender" class="form-control">
+            <option value="Female">Female</option>
+            <option value="Male">Male</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">CNIC / B-Form</label>
+          <input type="text" id="s-cnic" class="form-control" placeholder="35202-1234567-8">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone Number *</label>
+          <input type="tel" id="s-phone" class="form-control" placeholder="+92-300-0000000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Email Address *</label>
+          <input type="email" id="s-email" class="form-control" placeholder="student@email.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Guardian Phone</label>
+          <input type="tel" id="s-guardian-phone" class="form-control" placeholder="+92-300-0000000">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Home Address</label>
+        <input type="text" id="s-address" class="form-control" placeholder="Full address">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Login Password *</label>
+          <input type="password" id="s-password" class="form-control" placeholder="Set a password">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Enroll in Course</label>
+          <select id="s-course" class="form-control">
+            <option value="">— None —</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('add-student-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addStudent()">Save Student</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Student Modal -->
+<div class="modal-backdrop" id="edit-student-modal">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <h3>Edit Student Profile</h3>
+      <button class="modal-close" onclick="closeModal('edit-student-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="e-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" id="e-name" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Father's Name</label>
+          <input type="text" id="e-father" class="form-control">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date of Birth</label>
+          <input type="date" id="e-dob" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select id="e-gender" class="form-control">
+            <option value="Female">Female</option>
+            <option value="Male">Male</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">CNIC / B-Form</label>
+          <input type="text" id="e-cnic" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone Number</label>
+          <input type="tel" id="e-phone" class="form-control">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" id="e-email" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Guardian Phone</label>
+          <input type="tel" id="e-guardian-phone" class="form-control">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Home Address</label>
+        <input type="text" id="e-address" class="form-control">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('edit-student-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEdit()">Update Profile</button>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('admin');
+if (user) renderPage();
+
+function renderPage() {
+  const courses = dbGet(DB.COURSES);
+  document.getElementById('s-course').innerHTML += courses.map(c => `<option value="${c.id}">${c.icon} ${c.title}</option>`).join('');
+  document.getElementById('search-input').addEventListener('input', renderGrid);
+  document.getElementById('filter-gender').addEventListener('change', renderGrid);
+  renderGrid();
+}
+
+function renderGrid() {
+  const searchQ = document.getElementById('search-input').value.toLowerCase();
+  const genderF = document.getElementById('filter-gender').value;
+  let students = dbGet(DB.USERS).filter(u => u.role === 'student');
+  if (genderF) students = students.filter(s => s.gender === genderF);
+  if (searchQ)  students = students.filter(s =>
+    s.name.toLowerCase().includes(searchQ) ||
+    (s.cnic || '').includes(searchQ) ||
+    (s.phone || '').includes(searchQ)
+  );
+  document.getElementById('student-count').textContent = `${students.length} student${students.length !== 1 ? 's' : ''} registered`;
+
+  if (!students.length) {
+    document.getElementById('students-grid').innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--gray-400);">No students found</div>';
+    return;
+  }
+  document.getElementById('students-grid').innerHTML = students.map(s => {
+    const enrollments = getStudentEnrollments(s.id);
+    const courses = dbGet(DB.COURSES);
+    const courseList = enrollments.map(e => {
+      const c = dbGetOne(DB.COURSES, e.courseId);
+      return c ? `<span class="badge badge-primary" style="margin:2px;">${c.icon} ${c.title}</span>` : '';
+    }).join('');
+
+    return `
+    <div class="card" style="padding:var(--space-5);">
+      <div class="flex items-start justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <div class="avatar avatar-lg" style="background:var(--primary-light);color:var(--primary);font-size:1.5rem;">${s.avatar || getInitials(s.name)}</div>
+          <div>
+            <h3 class="font-bold text-base">${s.name}</h3>
+            <div class="text-xs text-muted">${s.email}</div>
+            <div class="text-xs text-muted mt-1">${roleBadge('student')}</div>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-outline btn-sm" onclick="editStudent('${s.id}')">✏️ Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="removeStudent('${s.id}','${s.name}')">✕</button>
+        </div>
+      </div>
+      <div class="grid grid-2" style="gap:var(--space-3);font-size:0.8rem;">
+        <div><span class="text-muted">Father:</span> <strong>${s.fatherName || '—'}</strong></div>
+        <div><span class="text-muted">DOB:</span> <strong>${s.dob || '—'}</strong></div>
+        <div><span class="text-muted">CNIC:</span> <strong>${s.cnic || '—'}</strong></div>
+        <div><span class="text-muted">Gender:</span> <strong>${s.gender || '—'}</strong></div>
+        <div><span class="text-muted">Phone:</span> <strong>${s.phone || '—'}</strong></div>
+        <div><span class="text-muted">Guardian:</span> <strong>${s.guardianPhone || '—'}</strong></div>
+        <div style="grid-column:1/-1;"><span class="text-muted">Address:</span> <strong>${s.address || '—'}</strong></div>
+      </div>
+      ${enrollments.length ? `<div class="mt-3 pt-3" style="border-top:1px solid var(--gray-100);">
+        <div class="text-xs text-muted mb-2">Enrolled Courses:</div>
+        <div>${courseList}</div>
+      </div>` : '<div class="text-xs text-muted mt-3">Not enrolled in any course</div>'}
+      <div class="text-xs text-muted mt-3">Registered: ${formatDate(s.createdAt)}</div>
+    </div>`;
+  }).join('');
+}
+
+function addStudent() {
+  const name     = document.getElementById('s-name').value.trim();
+  const father   = document.getElementById('s-father').value.trim();
+  const dob      = document.getElementById('s-dob').value;
+  const gender   = document.getElementById('s-gender').value;
+  const cnic     = document.getElementById('s-cnic').value.trim();
+  const phone    = document.getElementById('s-phone').value.trim();
+  const email    = document.getElementById('s-email').value.trim();
+  const gPhone   = document.getElementById('s-guardian-phone').value.trim();
+  const address  = document.getElementById('s-address').value.trim();
+  const password = document.getElementById('s-password').value;
+  const courseId = document.getElementById('s-course').value;
+
+  if (!name || !email || !password || !phone) { showToast('Name, email, phone & password are required', 'error'); return; }
+  if (findUserByEmail(email)) { showToast('Email already exists', 'error'); return; }
+
+  const newStudent = {
+    id: genId(), name, fatherName: father, dob, gender, cnic, phone,
+    email, guardianPhone: gPhone, address, password,
+    role: 'student', avatar: '👩‍🎓', createdAt: new Date().toISOString()
+  };
+  dbSave(DB.USERS, newStudent);
+  if (courseId) enrollStudent(newStudent.id, courseId);
+  closeModal('add-student-modal');
+  document.getElementById('add-student-modal').querySelectorAll('input,select').forEach(el => el.value = '');
+  renderGrid();
+  showToast(`${name} added successfully!`, 'success');
+}
+
+function editStudent(id) {
+  const s = dbGetOne(DB.USERS, id);
+  if (!s) return;
+  document.getElementById('e-id').value = s.id;
+  document.getElementById('e-name').value = s.name || '';
+  document.getElementById('e-father').value = s.fatherName || '';
+  document.getElementById('e-dob').value = s.dob || '';
+  document.getElementById('e-gender').value = s.gender || 'Female';
+  document.getElementById('e-cnic').value = s.cnic || '';
+  document.getElementById('e-phone').value = s.phone || '';
+  document.getElementById('e-email').value = s.email || '';
+  document.getElementById('e-guardian-phone').value = s.guardianPhone || '';
+  document.getElementById('e-address').value = s.address || '';
+  openModal('edit-student-modal');
+}
+
+function saveEdit() {
+  const id = document.getElementById('e-id').value;
+  const s  = dbGetOne(DB.USERS, id);
+  if (!s) return;
+  s.name         = document.getElementById('e-name').value.trim() || s.name;
+  s.fatherName   = document.getElementById('e-father').value.trim();
+  s.dob          = document.getElementById('e-dob').value;
+  s.gender       = document.getElementById('e-gender').value;
+  s.cnic         = document.getElementById('e-cnic').value.trim();
+  s.phone        = document.getElementById('e-phone').value.trim();
+  s.email        = document.getElementById('e-email').value.trim() || s.email;
+  s.guardianPhone= document.getElementById('e-guardian-phone').value.trim();
+  s.address      = document.getElementById('e-address').value.trim();
+  dbSave(DB.USERS, s);
+  closeModal('edit-student-modal');
+  renderGrid();
+  showToast('Profile updated!', 'success');
+}
+
+function removeStudent(id, name) {
+  showConfirm(`Remove student <strong>${name}</strong>? This also removes their enrollments and progress.`, () => {
+    dbDelete(DB.USERS, id);
+    dbSet(DB.ENROLLMENTS, dbGet(DB.ENROLLMENTS).filter(e => e.studentId !== id));
+    dbSet(DB.PROGRESS,    dbGet(DB.PROGRESS).filter(p => p.studentId !== id));
+    renderGrid();
+    showToast(`${name} removed`, 'warning');
+  }, 'Remove Student');
+}
+</script>
+</body>
+</html>

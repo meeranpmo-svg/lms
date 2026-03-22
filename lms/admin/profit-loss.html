@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profit & Loss — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Profit & Loss</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div>
+          <h1>Profit & Loss Report</h1>
+          <p>Financial overview of Ansha Montessori Teacher Training Institute</p>
+        </div>
+        <select class="form-control" id="filter-month" style="width:200px;">
+          <option value="">All Time</option>
+        </select>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="stats-grid" id="pl-stats" style="grid-template-columns:repeat(3,1fr);"></div>
+
+      <!-- P&L Summary Box -->
+      <div id="pl-summary-box" class="card mt-4"></div>
+
+      <!-- Two Column: Income vs Expense -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5);margin-top:var(--space-5);">
+
+        <!-- Income Breakdown -->
+        <div class="card">
+          <div class="card-header">
+            <h2 style="color:var(--success);">💰 Income</h2>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Course</th><th>Payments</th><th>Amount</th></tr></thead>
+              <tbody id="income-table"></tbody>
+            </table>
+          </div>
+          <div class="card-body" style="border-top:2px solid var(--gray-100);">
+            <div class="flex justify-between font-bold"><span>Total Income</span><span id="total-income-label" style="color:var(--success);">—</span></div>
+          </div>
+        </div>
+
+        <!-- Expense Breakdown -->
+        <div class="card">
+          <div class="card-header">
+            <h2 style="color:#ef4444;">💸 Expenses</h2>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Category</th><th>Items</th><th>Amount</th></tr></thead>
+              <tbody id="expense-table"></tbody>
+            </table>
+          </div>
+          <div class="card-body" style="border-top:2px solid var(--gray-100);">
+            <div class="flex justify-between font-bold"><span>Total Expenses</span><span id="total-expense-label" style="color:#ef4444;">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Monthly Trend -->
+      <div class="card mt-5">
+        <div class="card-header"><h2>Monthly Trend</h2></div>
+        <div class="card-body" id="monthly-trend"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const CATEGORY_META = {
+  salary:      { label: 'Salary',      icon: '👥' },
+  rent:        { label: 'Rent',        icon: '🏢' },
+  utilities:   { label: 'Utilities',   icon: '💡' },
+  supplies:    { label: 'Supplies',    icon: '📦' },
+  maintenance: { label: 'Maintenance', icon: '🔧' },
+  other:       { label: 'Other',       icon: '📌' },
+};
+
+const user = initPage('admin');
+if (user) renderPage();
+
+function renderPage() {
+  populateMonthFilter();
+  document.getElementById('filter-month').addEventListener('change', renderAll);
+  renderAll();
+}
+
+function populateMonthFilter() {
+  const payments = dbGet(DB.PAYMENTS);
+  const expenses = dbGet(DB.EXPENSES);
+  const months = [...new Set([
+    ...payments.map(p => (p.paidAt || '').slice(0, 7)),
+    ...expenses.map(e => (e.date || '').slice(0, 7))
+  ])].filter(Boolean).sort().reverse();
+
+  document.getElementById('filter-month').innerHTML = '<option value="">All Time</option>' +
+    months.map(m => {
+      const d = new Date(m + '-01');
+      return `<option value="${m}">${d.toLocaleDateString('en-PK', { month: 'long', year: 'numeric' })}</option>`;
+    }).join('');
+}
+
+function getFilteredData() {
+  const monthF = document.getElementById('filter-month').value;
+  let payments = dbGet(DB.PAYMENTS);
+  let expenses = dbGet(DB.EXPENSES);
+  if (monthF) {
+    payments = payments.filter(p => (p.paidAt || '').startsWith(monthF));
+    expenses = expenses.filter(e => (e.date || '').startsWith(monthF));
+  }
+  return { payments, expenses };
+}
+
+function renderAll() {
+  const { payments, expenses } = getFilteredData();
+  const totalIncome  = payments.reduce((s, p) => s + (p.amount || 0), 0);
+  const totalExpense = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const netProfit    = totalIncome - totalExpense;
+
+  renderStats(totalIncome, totalExpense, netProfit);
+  renderSummaryBox(totalIncome, totalExpense, netProfit);
+  renderIncomeTable(payments, totalIncome);
+  renderExpenseTable(expenses, totalExpense);
+  renderMonthlyTrend();
+}
+
+function renderStats(income, expense, net) {
+  document.getElementById('pl-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-icon green">💰</div><div class="stat-info"><div class="stat-value">${formatCurrency(income)}</div><div class="stat-label">Total Income</div></div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#fee2e2;">💸</div><div class="stat-info"><div class="stat-value">${formatCurrency(expense)}</div><div class="stat-label">Total Expenses</div></div></div>
+    <div class="stat-card"><div class="stat-icon ${net >= 0 ? 'teal' : ''}" style="${net < 0 ? 'background:#fee2e2;' : ''}">${net >= 0 ? '📈' : '📉'}</div><div class="stat-info"><div class="stat-value" style="color:${net >= 0 ? 'var(--success)' : '#ef4444'};">${formatCurrency(Math.abs(net))}</div><div class="stat-label">${net >= 0 ? 'Net Profit' : 'Net Loss'}</div></div></div>`;
+}
+
+function renderSummaryBox(income, expense, net) {
+  const profitPct = income > 0 ? Math.round((net / income) * 100) : 0;
+  const isProfit = net >= 0;
+  document.getElementById('pl-summary-box').innerHTML = `
+    <div class="card-body" style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:var(--space-6);">
+      <div>
+        <h3 class="font-bold text-lg mb-1">${isProfit ? '✅ Profitable Period' : '⚠️ Loss Period'}</h3>
+        <p class="text-muted text-sm mb-4">
+          ${isProfit
+            ? `The institute earned a net profit of <strong>${formatCurrency(net)}</strong> — a ${profitPct}% profit margin.`
+            : `The institute incurred a net loss of <strong>${formatCurrency(Math.abs(net))}</strong>. Expenses exceed income by ${Math.abs(profitPct)}%.`
+          }
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4);">
+          <div style="text-align:center;padding:var(--space-3);background:var(--gray-50);border-radius:var(--radius);">
+            <div class="text-sm text-muted">Income</div>
+            <div class="font-bold" style="color:var(--success);">${formatCurrency(income)}</div>
+          </div>
+          <div style="text-align:center;padding:var(--space-3);background:var(--gray-50);border-radius:var(--radius);">
+            <div class="text-sm text-muted">Expenses</div>
+            <div class="font-bold" style="color:#ef4444;">${formatCurrency(expense)}</div>
+          </div>
+          <div style="text-align:center;padding:var(--space-3);background:${isProfit ? '#ecfdf5' : '#fef2f2'};border-radius:var(--radius);">
+            <div class="text-sm text-muted">${isProfit ? 'Net Profit' : 'Net Loss'}</div>
+            <div class="font-bold" style="color:${isProfit ? 'var(--success)' : '#ef4444'};">${formatCurrency(Math.abs(net))}</div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;min-width:120px;">
+        <div style="font-size:3rem;font-weight:800;color:${isProfit ? 'var(--success)' : '#ef4444'};">${profitPct}%</div>
+        <div class="text-muted text-sm">${isProfit ? 'Profit Margin' : 'Loss Margin'}</div>
+      </div>
+    </div>`;
+}
+
+function renderIncomeTable(payments, totalIncome) {
+  const courses = dbGet(DB.COURSES);
+  const byCourse = {};
+  payments.forEach(p => {
+    if (!byCourse[p.courseId]) byCourse[p.courseId] = { count: 0, amount: 0 };
+    byCourse[p.courseId].count++;
+    byCourse[p.courseId].amount += (p.amount || 0);
+  });
+
+  const rows = Object.entries(byCourse).map(([courseId, data]) => {
+    const c = dbGetOne(DB.COURSES, courseId);
+    return `<tr>
+      <td class="text-sm">${c ? c.icon + ' ' + c.title : 'Other'}</td>
+      <td class="text-sm text-muted">${data.count} payment${data.count !== 1 ? 's' : ''}</td>
+      <td class="font-semibold text-sm" style="color:var(--success);">${formatCurrency(data.amount)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('income-table').innerHTML = rows || '<tr><td colspan="3" class="text-center text-muted" style="padding:1.5rem;">No income recorded</td></tr>';
+  document.getElementById('total-income-label').textContent = formatCurrency(totalIncome);
+}
+
+function renderExpenseTable(expenses, totalExpense) {
+  const byCategory = {};
+  expenses.forEach(e => {
+    if (!byCategory[e.category]) byCategory[e.category] = { count: 0, amount: 0 };
+    byCategory[e.category].count++;
+    byCategory[e.category].amount += (e.amount || 0);
+  });
+
+  const rows = Object.entries(byCategory).map(([cat, data]) => {
+    const meta = CATEGORY_META[cat] || { label: cat, icon: '📌' };
+    return `<tr>
+      <td class="text-sm">${meta.icon} ${meta.label}</td>
+      <td class="text-sm text-muted">${data.count} item${data.count !== 1 ? 's' : ''}</td>
+      <td class="font-semibold text-sm" style="color:#ef4444;">${formatCurrency(data.amount)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('expense-table').innerHTML = rows || '<tr><td colspan="3" class="text-center text-muted" style="padding:1.5rem;">No expenses recorded</td></tr>';
+  document.getElementById('total-expense-label').textContent = formatCurrency(totalExpense);
+}
+
+function renderMonthlyTrend() {
+  const allPayments = dbGet(DB.PAYMENTS);
+  const allExpenses = dbGet(DB.EXPENSES);
+
+  const months = [...new Set([
+    ...allPayments.map(p => (p.paidAt || '').slice(0, 7)),
+    ...allExpenses.map(e => (e.date || '').slice(0, 7))
+  ])].filter(Boolean).sort();
+
+  if (!months.length) {
+    document.getElementById('monthly-trend').innerHTML = '<p class="text-muted text-sm">No data available.</p>';
+    return;
+  }
+
+  const maxAmount = Math.max(...months.map(m => {
+    const inc = allPayments.filter(p => (p.paidAt || '').startsWith(m)).reduce((s, p) => s + (p.amount || 0), 0);
+    const exp = allExpenses.filter(e => (e.date || '').startsWith(m)).reduce((s, e) => s + (e.amount || 0), 0);
+    return Math.max(inc, exp);
+  })) || 1;
+
+  const bars = months.map(m => {
+    const inc = allPayments.filter(p => (p.paidAt || '').startsWith(m)).reduce((s, p) => s + (p.amount || 0), 0);
+    const exp = allExpenses.filter(e => (e.date || '').startsWith(m)).reduce((s, e) => s + (e.amount || 0), 0);
+    const net = inc - exp;
+    const label = new Date(m + '-01').toLocaleDateString('en-PK', { month: 'short', year: '2-digit' });
+    return `
+    <div style="flex:1;min-width:80px;">
+      <div style="display:flex;align-items:flex-end;gap:4px;height:120px;margin-bottom:var(--space-2);">
+        <div title="Income: ${formatCurrency(inc)}" style="flex:1;background:var(--success);opacity:0.8;border-radius:4px 4px 0 0;height:${Math.round((inc/maxAmount)*100)}%;"></div>
+        <div title="Expense: ${formatCurrency(exp)}" style="flex:1;background:#ef4444;opacity:0.8;border-radius:4px 4px 0 0;height:${Math.round((exp/maxAmount)*100)}%;"></div>
+      </div>
+      <div class="text-xs text-center text-muted">${label}</div>
+      <div class="text-xs text-center font-semibold" style="color:${net >= 0 ? 'var(--success)' : '#ef4444'};">${net >= 0 ? '+' : ''}${formatCurrency(net)}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('monthly-trend').innerHTML = `
+    <div style="display:flex;gap:var(--space-2);align-items:flex-end;overflow-x:auto;padding-bottom:var(--space-2);">${bars}</div>
+    <div class="flex gap-4 mt-3 text-xs text-muted">
+      <span><span style="display:inline-block;width:12px;height:12px;background:var(--success);border-radius:2px;margin-right:4px;"></span>Income</span>
+      <span><span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:2px;margin-right:4px;"></span>Expenses</span>
+    </div>`;
+}
+</script>
+</body>
+</html>

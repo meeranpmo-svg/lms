@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payments — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Payments</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div>
+          <h1>Payment Records</h1>
+          <p>Track all student fee payments and receipts</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('add-payment-modal')">+ Record Payment</button>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid" id="pay-stats" style="grid-template-columns:repeat(4,1fr);"></div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar mt-4">
+        <div class="search-input">
+          <span>🔍</span>
+          <input type="text" id="search-input" placeholder="Search by student or receipt no…">
+        </div>
+        <select class="form-control" id="filter-method" style="width:auto;min-width:140px;">
+          <option value="">All Methods</option>
+          <option value="cash">Cash</option>
+          <option value="bank">Bank Transfer</option>
+          <option value="cheque">Cheque</option>
+          <option value="online">Online</option>
+        </select>
+        <select class="form-control" id="filter-course" style="width:auto;min-width:200px;">
+          <option value="">All Courses</option>
+        </select>
+      </div>
+
+      <!-- Pending Fee Alerts -->
+      <div id="pending-alerts"></div>
+
+      <!-- Payments Table -->
+      <div class="card mt-4">
+        <div class="card-header">
+          <h2>Payment History</h2>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Receipt No.</th>
+                <th>Student</th>
+                <th>Course</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Date</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="pay-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Add Payment Modal -->
+<div class="modal-backdrop" id="add-payment-modal">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-header">
+      <h3>Record Payment</h3>
+      <button class="modal-close" onclick="closeModal('add-payment-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Student *</label>
+          <select id="p-student" class="form-control" onchange="populateCourses()">
+            <option value="">— Select Student —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Course *</label>
+          <select id="p-course" class="form-control">
+            <option value="">— Select Course —</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Amount (PKR) *</label>
+          <input type="number" id="p-amount" class="form-control" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Payment Method *</label>
+          <select id="p-method" class="form-control">
+            <option value="cash">Cash</option>
+            <option value="bank">Bank Transfer</option>
+            <option value="cheque">Cheque</option>
+            <option value="online">Online</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Receipt No.</label>
+          <input type="text" id="p-receipt" class="form-control" placeholder="Auto-generate if blank">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Payment Date *</label>
+          <input type="date" id="p-date" class="form-control">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <input type="text" id="p-notes" class="form-control" placeholder="Optional notes">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('add-payment-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePayment()">Save Payment</button>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('admin');
+if (user) renderPage();
+
+function renderPage() {
+  // Set today's date as default
+  document.getElementById('p-date').value = new Date().toISOString().split('T')[0];
+  // Populate student dropdown
+  const students = dbGet(DB.USERS).filter(u => u.role === 'student');
+  document.getElementById('p-student').innerHTML += students.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  // Populate course filter
+  const courses = dbGet(DB.COURSES);
+  document.getElementById('filter-course').innerHTML += courses.map(c => `<option value="${c.id}">${c.icon} ${c.title}</option>`).join('');
+  // Events
+  document.getElementById('search-input').addEventListener('input', renderTable);
+  document.getElementById('filter-method').addEventListener('change', renderTable);
+  document.getElementById('filter-course').addEventListener('change', renderTable);
+  renderStats();
+  renderPendingAlerts();
+  renderTable();
+}
+
+function populateCourses() {
+  const studentId = document.getElementById('p-student').value;
+  const enrollments = studentId ? getStudentEnrollments(studentId) : [];
+  const allCourses = dbGet(DB.COURSES);
+  const courseOpts = enrollments.map(e => {
+    const c = dbGetOne(DB.COURSES, e.courseId);
+    return c ? `<option value="${c.id}" data-fee="${c.fee}">${c.icon} ${c.title} — ${formatCurrency(c.fee)}</option>` : '';
+  }).join('');
+  document.getElementById('p-course').innerHTML = '<option value="">— Select Course —</option>' + (courseOpts || allCourses.map(c => `<option value="${c.id}" data-fee="${c.fee}">${c.icon} ${c.title}</option>`).join(''));
+}
+
+function renderStats() {
+  const payments = dbGet(DB.PAYMENTS);
+  const enrollments = dbGet(DB.ENROLLMENTS);
+  const totalCollected = payments.reduce((s, p) => s + (p.amount || 0), 0);
+  const totalDue = enrollments.reduce((s, e) => {
+    const c = dbGetOne(DB.COURSES, e.courseId);
+    return s + (c ? c.fee : 0);
+  }, 0);
+  const pending = enrollments.filter(e => e.feeStatus === 'pending').reduce((s, e) => {
+    const c = dbGetOne(DB.COURSES, e.courseId);
+    return s + (c ? c.fee : 0);
+  }, 0);
+
+  document.getElementById('pay-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-icon green">💰</div><div class="stat-info"><div class="stat-value">${formatCurrency(totalCollected)}</div><div class="stat-label">Total Collected</div></div></div>
+    <div class="stat-card"><div class="stat-icon gold">⏳</div><div class="stat-info"><div class="stat-value">${formatCurrency(pending)}</div><div class="stat-label">Pending Fees</div></div></div>
+    <div class="stat-card"><div class="stat-icon blue">📋</div><div class="stat-info"><div class="stat-value">${payments.length}</div><div class="stat-label">Transactions</div></div></div>
+    <div class="stat-card"><div class="stat-icon teal">📊</div><div class="stat-info"><div class="stat-value">${formatCurrency(totalDue)}</div><div class="stat-label">Total Fee Due</div></div></div>`;
+}
+
+function renderPendingAlerts() {
+  const pending = dbGet(DB.ENROLLMENTS).filter(e => e.feeStatus === 'pending');
+  if (!pending.length) { document.getElementById('pending-alerts').innerHTML = ''; return; }
+  const items = pending.map(e => {
+    const s = dbGetOne(DB.USERS, e.studentId);
+    const c = dbGetOne(DB.COURSES, e.courseId);
+    if (!s || !c) return '';
+    return `<div class="flex items-center justify-between" style="padding:var(--space-2) 0;border-bottom:1px solid var(--gray-100);">
+      <span class="text-sm"><strong>${s.name}</strong> — ${c.icon} ${c.title} (${formatCurrency(c.fee)})</span>
+      <button class="btn btn-success btn-sm" onclick="quickMarkPaid('${e.id}')">✓ Mark Paid</button>
+    </div>`;
+  }).join('');
+  document.getElementById('pending-alerts').innerHTML = `
+    <div class="card mt-4" style="border-left:4px solid #f59e0b;">
+      <div class="card-header"><h3 style="color:#b45309;">⚠️ Pending Fees (${pending.length})</h3></div>
+      <div class="card-body">${items}</div>
+    </div>`;
+}
+
+function quickMarkPaid(enrollmentId) {
+  const e = dbGetOne(DB.ENROLLMENTS, enrollmentId);
+  if (!e) return;
+  e.feeStatus = 'paid';
+  dbSave(DB.ENROLLMENTS, e);
+  const s = dbGetOne(DB.USERS, e.studentId);
+  const c = dbGetOne(DB.COURSES, e.courseId);
+  // Auto-create payment record
+  const payment = {
+    id: genId(), studentId: e.studentId, courseId: e.courseId,
+    amount: c ? c.fee : 0, method: 'cash',
+    receiptNo: 'RCP-' + Date.now().toString().slice(-4),
+    paidAt: new Date().toISOString(), notes: 'Marked paid from pending list'
+  };
+  dbSave(DB.PAYMENTS, payment);
+  showToast(`Fee marked as paid for ${s ? s.name : 'student'}`, 'success');
+  renderStats(); renderPendingAlerts(); renderTable();
+}
+
+function renderTable() {
+  const searchQ  = document.getElementById('search-input').value.toLowerCase();
+  const methodF  = document.getElementById('filter-method').value;
+  const courseF  = document.getElementById('filter-course').value;
+
+  let payments = dbGet(DB.PAYMENTS).slice().reverse();
+  if (methodF) payments = payments.filter(p => p.method === methodF);
+  if (courseF) payments = payments.filter(p => p.courseId === courseF);
+
+  const methodLabels = { cash: '💵 Cash', bank: '🏦 Bank', cheque: '📝 Cheque', online: '💳 Online' };
+  const rows = payments.map(p => {
+    const s = dbGetOne(DB.USERS, p.studentId);
+    const c = dbGetOne(DB.COURSES, p.courseId);
+    if (!s || !c) return '';
+    if (searchQ && !s.name.toLowerCase().includes(searchQ) && !(p.receiptNo || '').toLowerCase().includes(searchQ)) return '';
+    return `<tr>
+      <td class="font-mono text-sm">${p.receiptNo || '—'}</td>
+      <td><div class="font-medium text-sm">${s.name}</div><div class="text-xs text-muted">${s.email}</div></td>
+      <td class="text-sm">${c.icon} ${c.title}</td>
+      <td class="font-bold text-sm" style="color:var(--success);">${formatCurrency(p.amount)}</td>
+      <td class="text-sm">${methodLabels[p.method] || p.method}</td>
+      <td class="text-sm text-muted">${formatDate(p.paidAt)}</td>
+      <td class="text-sm text-muted">${p.notes || '—'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('pay-table').innerHTML = rows || '<tr><td colspan="7" class="text-center text-muted" style="padding:2rem;">No payment records found</td></tr>';
+}
+
+function savePayment() {
+  const studentId = document.getElementById('p-student').value;
+  const courseId  = document.getElementById('p-course').value;
+  const amount    = parseFloat(document.getElementById('p-amount').value);
+  const method    = document.getElementById('p-method').value;
+  const date      = document.getElementById('p-date').value;
+  if (!studentId || !courseId || !amount || !date) { showToast('Student, course, amount and date are required', 'error'); return; }
+
+  const receiptNo = document.getElementById('p-receipt').value.trim() || 'RCP-' + Date.now().toString().slice(-4);
+  const payment = {
+    id: genId(), studentId, courseId, amount, method, receiptNo,
+    paidAt: new Date(date).toISOString(),
+    notes: document.getElementById('p-notes').value.trim()
+  };
+  dbSave(DB.PAYMENTS, payment);
+
+  // Mark enrollment fee as paid
+  const enrollment = getEnrollment(studentId, courseId);
+  if (enrollment) {
+    enrollment.feeStatus = 'paid';
+    dbSave(DB.ENROLLMENTS, enrollment);
+  }
+
+  closeModal('add-payment-modal');
+  document.getElementById('p-student').value = '';
+  document.getElementById('p-course').innerHTML = '<option value="">— Select Course —</option>';
+  document.getElementById('p-amount').value = '';
+  document.getElementById('p-receipt').value = '';
+  document.getElementById('p-notes').value = '';
+
+  renderStats(); renderPendingAlerts(); renderTable();
+  showToast(`Payment of ${formatCurrency(amount)} recorded — Receipt ${receiptNo}`, 'success');
+}
+</script>
+</body>
+</html>

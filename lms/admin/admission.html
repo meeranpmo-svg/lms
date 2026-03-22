@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admissions — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Admissions</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div>
+          <h1>Admission Management</h1>
+          <p>Track and process student admission applications</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('new-admission-modal')">+ New Application</button>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid" id="adm-stats" style="grid-template-columns:repeat(3,1fr);"></div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar mt-4">
+        <div class="search-input">
+          <span>🔍</span>
+          <input type="text" id="search-input" placeholder="Search by name or email…">
+        </div>
+        <select class="form-control" id="filter-course" style="width:auto;min-width:200px;">
+          <option value="">All Courses</option>
+        </select>
+        <select class="form-control" id="filter-status" style="width:auto;min-width:150px;">
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+
+      <!-- Admissions Table -->
+      <div class="card mt-4">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Applicant</th>
+                <th>Father's Name</th>
+                <th>Phone</th>
+                <th>Course Applied</th>
+                <th>Applied Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adm-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- New Admission Modal -->
+<div class="modal-backdrop" id="new-admission-modal">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <h3>New Admission Application</h3>
+      <button class="modal-close" onclick="closeModal('new-admission-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Student Name *</label>
+          <input type="text" id="a-name" class="form-control" placeholder="Full name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Father's Name *</label>
+          <input type="text" id="a-father" class="form-control" placeholder="Father's full name">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date of Birth</label>
+          <input type="date" id="a-dob" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender</label>
+          <select id="a-gender" class="form-control">
+            <option value="Female">Female</option>
+            <option value="Male">Male</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">CNIC / B-Form</label>
+          <input type="text" id="a-cnic" class="form-control" placeholder="35202-1234567-8">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone *</label>
+          <input type="tel" id="a-phone" class="form-control" placeholder="+92-300-0000000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="a-email" class="form-control" placeholder="applicant@email.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Course Applied *</label>
+          <select id="a-course" class="form-control">
+            <option value="">— Select Course —</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Address</label>
+        <input type="text" id="a-address" class="form-control" placeholder="Full home address">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea id="a-notes" class="form-control" placeholder="Any additional notes…" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('new-admission-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAdmission()">Submit Application</button>
+    </div>
+  </div>
+</div>
+
+<!-- View Admission Modal -->
+<div class="modal-backdrop" id="view-admission-modal">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <h3>Application Details</h3>
+      <button class="modal-close" onclick="closeModal('view-admission-modal')">×</button>
+    </div>
+    <div class="modal-body" id="adm-detail-body"></div>
+    <div class="modal-footer" id="adm-detail-actions"></div>
+  </div>
+</div>
+
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('admin');
+if (user) renderPage();
+
+function renderPage() {
+  const courses = dbGet(DB.COURSES);
+  const opts = courses.map(c => `<option value="${c.id}">${c.icon} ${c.title}</option>`).join('');
+  document.getElementById('filter-course').innerHTML += opts;
+  document.getElementById('a-course').innerHTML += opts;
+  document.getElementById('search-input').addEventListener('input', renderTable);
+  document.getElementById('filter-course').addEventListener('change', renderTable);
+  document.getElementById('filter-status').addEventListener('change', renderTable);
+  renderStats();
+  renderTable();
+}
+
+function renderStats() {
+  const admissions = dbGet(DB.ADMISSIONS);
+  const pending  = admissions.filter(a => a.status === 'pending').length;
+  const approved = admissions.filter(a => a.status === 'approved').length;
+  const rejected = admissions.filter(a => a.status === 'rejected').length;
+  document.getElementById('adm-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-icon gold">⏳</div><div class="stat-info"><div class="stat-value">${pending}</div><div class="stat-label">Pending</div></div></div>
+    <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><div class="stat-value">${approved}</div><div class="stat-label">Approved</div></div></div>
+    <div class="stat-card"><div class="stat-icon" style="background:#fee2e2;">❌</div><div class="stat-info"><div class="stat-value">${rejected}</div><div class="stat-label">Rejected</div></div></div>`;
+}
+
+function renderTable() {
+  const searchQ  = document.getElementById('search-input').value.toLowerCase();
+  const courseF  = document.getElementById('filter-course').value;
+  const statusF  = document.getElementById('filter-status').value;
+
+  let list = dbGet(DB.ADMISSIONS);
+  if (courseF)  list = list.filter(a => a.course === courseF);
+  if (statusF)  list = list.filter(a => a.status === statusF);
+  if (searchQ)  list = list.filter(a =>
+    a.studentName.toLowerCase().includes(searchQ) ||
+    (a.email || '').toLowerCase().includes(searchQ)
+  );
+
+  const statusColors = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
+  const rows = list.map(a => {
+    const course = dbGetOne(DB.COURSES, a.course);
+    return `<tr>
+      <td><div class="font-medium">${a.studentName}</div><div class="text-xs text-muted">${a.email || '—'}</div></td>
+      <td class="text-sm">${a.fatherName || '—'}</td>
+      <td class="text-sm">${a.phone || '—'}</td>
+      <td class="text-sm">${course ? course.icon + ' ' + course.title : '—'}</td>
+      <td class="text-sm text-muted">${formatDate(a.appliedAt)}</td>
+      <td><span class="badge ${statusColors[a.status] || 'badge-gray'}">${capitalize(a.status)}</span></td>
+      <td>
+        <div class="flex gap-2">
+          <button class="btn btn-outline btn-sm" onclick="viewAdmission('${a.id}')">View</button>
+          ${a.status === 'pending' ? `
+            <button class="btn btn-success btn-sm" onclick="updateStatus('${a.id}','approved')">✓ Approve</button>
+            <button class="btn btn-danger btn-sm" onclick="updateStatus('${a.id}','rejected')">✕ Reject</button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('adm-table').innerHTML = rows || '<tr><td colspan="7" class="text-center text-muted" style="padding:2rem;">No applications found</td></tr>';
+}
+
+function saveAdmission() {
+  const name   = document.getElementById('a-name').value.trim();
+  const father = document.getElementById('a-father').value.trim();
+  const phone  = document.getElementById('a-phone').value.trim();
+  const course = document.getElementById('a-course').value;
+  if (!name || !phone || !course) { showToast('Name, phone, and course are required', 'error'); return; }
+
+  const adm = {
+    id: genId(), studentName: name, fatherName: father,
+    dob: document.getElementById('a-dob').value,
+    gender: document.getElementById('a-gender').value,
+    cnic: document.getElementById('a-cnic').value.trim(),
+    phone, email: document.getElementById('a-email').value.trim(),
+    address: document.getElementById('a-address').value.trim(),
+    notes: document.getElementById('a-notes').value.trim(),
+    course, appliedAt: new Date().toISOString(), status: 'pending', linkedUserId: null
+  };
+  dbSave(DB.ADMISSIONS, adm);
+  closeModal('new-admission-modal');
+  document.getElementById('new-admission-modal').querySelectorAll('input,select,textarea').forEach(el => el.value = '');
+  renderStats(); renderTable();
+  showToast(`Application for ${name} submitted!`, 'success');
+}
+
+function updateStatus(id, status) {
+  const a = dbGetOne(DB.ADMISSIONS, id);
+  if (!a) return;
+  a.status = status;
+  dbSave(DB.ADMISSIONS, a);
+
+  // If approved, create student account if not exists
+  if (status === 'approved' && !a.linkedUserId && a.email) {
+    if (!findUserByEmail(a.email)) {
+      const newStudent = {
+        id: genId(), name: a.studentName, fatherName: a.fatherName,
+        dob: a.dob, gender: a.gender, cnic: a.cnic,
+        phone: a.phone, email: a.email, address: a.address,
+        password: 'student123', role: 'student', avatar: '👩‍🎓',
+        createdAt: new Date().toISOString()
+      };
+      dbSave(DB.USERS, newStudent);
+      enrollStudent(newStudent.id, a.course);
+      a.linkedUserId = newStudent.id;
+      dbSave(DB.ADMISSIONS, a);
+      showToast(`${a.studentName} approved & student account created!`, 'success');
+    } else {
+      showToast(`Application ${status}`, 'success');
+    }
+  } else {
+    showToast(`Application ${status}`, status === 'approved' ? 'success' : 'warning');
+  }
+  renderStats(); renderTable();
+}
+
+function viewAdmission(id) {
+  const a = dbGetOne(DB.ADMISSIONS, id);
+  if (!a) return;
+  const course = dbGetOne(DB.COURSES, a.course);
+  const statusColors = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
+  document.getElementById('adm-detail-body').innerHTML = `
+    <div class="grid grid-2" style="gap:var(--space-4);font-size:0.875rem;">
+      <div><span class="text-muted">Name:</span><br><strong>${a.studentName}</strong></div>
+      <div><span class="text-muted">Father:</span><br><strong>${a.fatherName || '—'}</strong></div>
+      <div><span class="text-muted">DOB:</span><br><strong>${a.dob || '—'}</strong></div>
+      <div><span class="text-muted">Gender:</span><br><strong>${a.gender || '—'}</strong></div>
+      <div><span class="text-muted">CNIC:</span><br><strong>${a.cnic || '—'}</strong></div>
+      <div><span class="text-muted">Phone:</span><br><strong>${a.phone || '—'}</strong></div>
+      <div><span class="text-muted">Email:</span><br><strong>${a.email || '—'}</strong></div>
+      <div><span class="text-muted">Course:</span><br><strong>${course ? course.icon + ' ' + course.title : '—'}</strong></div>
+      <div style="grid-column:1/-1;"><span class="text-muted">Address:</span><br><strong>${a.address || '—'}</strong></div>
+      <div style="grid-column:1/-1;"><span class="text-muted">Notes:</span><br><strong>${a.notes || '—'}</strong></div>
+      <div><span class="text-muted">Applied:</span><br><strong>${formatDate(a.appliedAt)}</strong></div>
+      <div><span class="text-muted">Status:</span><br><span class="badge" style="background:${statusColors[a.status]}20;color:${statusColors[a.status]}">${capitalize(a.status)}</span></div>
+    </div>`;
+  document.getElementById('adm-detail-actions').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal('view-admission-modal')">Close</button>
+    ${a.status === 'pending' ? `
+      <button class="btn btn-success" onclick="updateStatus('${a.id}','approved');closeModal('view-admission-modal')">✓ Approve</button>
+      <button class="btn btn-danger" onclick="updateStatus('${a.id}','rejected');closeModal('view-admission-modal')">✕ Reject</button>` : ''}`;
+  openModal('view-admission-modal');
+}
+</script>
+</body>
+</html>
