@@ -1,43 +1,16 @@
 version: "3.9"
 
 # =====================================================================
-# Ansha Shine Kids School — ERP + LMS Docker Compose
+# Ansha Shine Kids School — LMS Docker Compose
 # =====================================================================
 # Commands:
-#   Start all services:   docker compose up -d
-#   Stop all services:    docker compose down
-#   View logs:            docker compose logs -f
-#   Rebuild & restart:    docker compose up -d --build
-#   ERP only:             docker compose up -d erp
-#   LMS only:             docker compose up -d lms
+#   Start:    docker compose up -d
+#   Stop:     docker compose down
+#   Logs:     docker compose logs -f
+#   Rebuild:  docker compose up -d --build
 # =====================================================================
 
 services:
-
-  # ─── ERP ─────────────────────────────────────────────────────────
-  erp:
-    build:
-      context: ./erp
-      dockerfile: Dockerfile
-    image: ansha-erp:latest
-    container_name: ansha-erp
-    restart: unless-stopped
-    ports:
-      - "8081:80"
-    volumes:
-      # Named volume for backup exports
-      - erp-backups:/var/backups/erp
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost/index.html"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    labels:
-      - "com.anshashine.service=erp"
-      - "com.anshashine.version=1.0"
-    networks:
-      - ansha-net
 
   # ─── LMS ─────────────────────────────────────────────────────────
   lms:
@@ -50,7 +23,6 @@ services:
     ports:
       - "3000:80"
     volumes:
-      # Named volume for backup exports
       - lms-backups:/var/backups/lms
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/index.html"]
@@ -64,32 +36,108 @@ services:
     networks:
       - ansha-net
 
-  # ─── Nginx Reverse Proxy (optional — for single-domain hosting) ──
-  # Uncomment this section if you want both apps behind one domain:
-  # erp → yourdomain.com/erp/
-  # lms → yourdomain.com/lms/
-  #
-  # proxy:
-  #   image: nginx:alpine
-  #   container_name: ansha-proxy
-  #   restart: unless-stopped
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-  #     - ./proxy/certs:/etc/nginx/certs:ro
-  #   depends_on:
-  #     - erp
-  #     - lms
-  #   networks:
-  #     - ansha-net
+  # ─── ITSM: PostgreSQL Database ───────────────────────────────────
+  itsm-db:
+    image: postgres:16-alpine
+    container_name: itsm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-itsm}
+      POSTGRES_USER: ${POSTGRES_USER:-itsm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - itsm-db-data:/var/lib/postgresql/data
+      - ./itsm/scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-itsm}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ansha-net
+    labels:
+      - "com.anshashine.service=itsm-db"
+      - "com.anshashine.data-residency=KSA"
+
+  # ─── ITSM: NestJS API ────────────────────────────────────────────
+  itsm-api:
+    build:
+      context: ./itsm/backend
+      dockerfile: Dockerfile
+    image: smartshield-itsm-api:latest
+    container_name: itsm-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-itsm}:${POSTGRES_PASSWORD:-changeme}@itsm-db:5432/${POSTGRES_DB:-itsm}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      EMAIL_HOST: ${EMAIL_HOST:-smtp.office365.com}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
+      DATA_RESIDENCY: KSA
+    depends_on:
+      itsm-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget -q --spider http://localhost:3001/api/docs 2>/dev/null; e=$$?; if [ \"$$e\" -eq 0 ] || [ \"$$e\" -eq 8 ]; then exit 0; else exit 1; fi"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ansha-net
+    labels:
+      - "com.anshashine.service=itsm-api"
+      - "com.anshashine.version=1.0"
+
+  # ─── ITSM: React Web Frontend ────────────────────────────────────
+  itsm-web:
+    build:
+      context: ./itsm/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+        VITE_AZURE_TENANT_ID: ${AZURE_TENANT_ID}
+        VITE_API_URL: ${API_URL:-http://localhost:3001}
+    image: smartshield-itsm-web:latest
+    container_name: itsm-web
+    restart: unless-stopped
+    ports:
+      - "8082:80"
+    depends_on:
+      itsm-api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ansha-net
+    labels:
+      - "com.anshashine.service=itsm-web"
+      - "com.anshashine.version=1.0"
 
 volumes:
-  erp-backups:
-    driver: local
   lms-backups:
     driver: local
+  itsm-db-data:
+    driver: local
+    labels:
+      - "com.anshashine.backup=true"
+      - "com.anshashine.data-residency=KSA"
 
 networks:
   ansha-net:
