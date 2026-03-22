@@ -3,6 +3,7 @@
    Authentication & authorization helpers
    ========================================================= */
 
+// Legacy sync login (localStorage fallback)
 function login(email, password, role) {
   const user = findUserByEmail(email);
   if (!user) return { success: false, message: 'No account found with this email address.' };
@@ -10,6 +11,17 @@ function login(email, password, role) {
   if (user.role !== role) return { success: false, message: `This account is registered as a ${user.role}, not a ${role}.` };
   setSession(user);
   return { success: true, user };
+}
+
+// Primary async login — checks Supabase first, falls back to localStorage
+async function loginAsync(credential, password, role) {
+  try {
+    const result = await sbLogin(credential, password, role);
+    return result;
+  } catch (e) {
+    // Fallback to localStorage if Supabase unreachable
+    return login(credential, password, role);
+  }
 }
 
 function logout() {

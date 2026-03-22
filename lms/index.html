@@ -111,7 +111,9 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/data.js"></script>
+<script src="assets/js/supabase.js"></script>
 <script src="assets/js/auth.js"></script>
 <script src="assets/js/utils.js"></script>
 <script>
@@ -151,31 +153,32 @@
     else { pw.type = 'password'; btn.textContent = '👁️'; }
   }
 
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault();
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    const errEl = document.getElementById('login-error');
-    const btnText = document.getElementById('btn-text');
+    const credential = document.getElementById('email').value.trim();
+    const password   = document.getElementById('password').value;
+    const errEl      = document.getElementById('login-error');
+    const btnText    = document.getElementById('btn-text');
     const btnSpinner = document.getElementById('btn-spinner');
 
     errEl.classList.add('hidden');
     btnText.textContent = 'Signing in…';
     btnSpinner.classList.remove('hidden');
+    document.getElementById('login-btn').disabled = true;
 
-    setTimeout(() => {
-      const result = login(email, password, selectedRole);
-      btnText.textContent = 'Sign In';
-      btnSpinner.classList.add('hidden');
+    const result = await loginAsync(credential, password, selectedRole);
 
-      if (result.success) {
-        showToast(`Welcome back, ${result.user.name}! 🎉`, 'success');
-        setTimeout(() => redirectAfterLogin(selectedRole), 600);
-      } else {
-        errEl.textContent = result.message;
-        errEl.classList.remove('hidden');
-      }
-    }, 500);
+    btnText.textContent = 'Sign In';
+    btnSpinner.classList.add('hidden');
+    document.getElementById('login-btn').disabled = false;
+
+    if (result.success) {
+      showToast(`Welcome back, ${result.user.name}! 🎉`, 'success');
+      setTimeout(() => redirectAfterLogin(selectedRole), 600);
+    } else {
+      errEl.textContent = result.message;
+      errEl.classList.remove('hidden');
+    }
   }
 </script>
 </body>

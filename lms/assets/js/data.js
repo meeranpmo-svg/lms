@@ -82,14 +82,18 @@ function enrollStudent(studentId, courseId) {
     enrolledAt: new Date().toISOString(),
     progress: 0, status: 'active', feeStatus: 'pending'
   };
-  return dbSave(DB.ENROLLMENTS, enrollment);
+  dbSave(DB.ENROLLMENTS, enrollment);
+  if (window.sbPushEnrollment) sbPushEnrollment(enrollment);
+  return enrollment;
 }
 
 /* ---- Progress helpers ---- */
 function markLessonComplete(studentId, lessonId) {
   const existing = dbGet(DB.PROGRESS).find(p => p.studentId === studentId && p.lessonId === lessonId);
   if (existing) return;
-  dbSave(DB.PROGRESS, { id: genId(), studentId, lessonId, completed: true, completedAt: new Date().toISOString() });
+  const prog = { id: genId(), studentId, lessonId, completed: true, completedAt: new Date().toISOString() };
+  dbSave(DB.PROGRESS, prog);
+  if (window.sbPushProgress) sbPushProgress(prog);
 
   // Recalculate course progress
   const lesson = dbGetOne(DB.LESSONS, lessonId);
@@ -107,6 +111,7 @@ function markLessonComplete(studentId, lessonId) {
     enrollment.progress = progress;
     if (progress === 100) enrollment.status = 'completed';
     dbSave(DB.ENROLLMENTS, enrollment);
+    if (window.sbPushEnrollment) sbPushEnrollment(enrollment);
   }
 }
 function isLessonCompleted(studentId, lessonId) {
@@ -122,7 +127,9 @@ function saveQuizResult(studentId, quizId, score, total, answers) {
     score, total, percentage: Math.round((score / total) * 100),
     answers, submittedAt: new Date().toISOString()
   };
-  return dbSave(DB.SUBMISSIONS, sub);
+  dbSave(DB.SUBMISSIONS, sub);
+  if (window.sbPushSubmission) sbPushSubmission(sub);
+  return sub;
 }
 function getQuizResult(studentId, quizId) {
   return dbGet(DB.SUBMISSIONS).find(s => s.type === 'quiz' && s.studentId === studentId && s.quizId === quizId) || null;
@@ -131,15 +138,24 @@ function getQuizResult(studentId, quizId) {
 /* ---- Assignment Submissions ---- */
 function submitAssignment(studentId, assignmentId, answer) {
   const existing = dbGet(DB.SUBMISSIONS).find(s => s.type === 'assignment' && s.studentId === studentId && s.assignmentId === assignmentId);
-  if (existing) { existing.answer = answer; existing.submittedAt = new Date().toISOString(); return dbSave(DB.SUBMISSIONS, existing); }
+  if (existing) {
+    existing.answer = answer; existing.submittedAt = new Date().toISOString();
+    dbSave(DB.SUBMISSIONS, existing);
+    if (window.sbPushSubmission) sbPushSubmission(existing);
+    return existing;
+  }
   const sub = { id: genId(), type: 'assignment', assignmentId, studentId, answer, marks: null, feedback: '', submittedAt: new Date().toISOString() };
-  return dbSave(DB.SUBMISSIONS, sub);
+  dbSave(DB.SUBMISSIONS, sub);
+  if (window.sbPushSubmission) sbPushSubmission(sub);
+  return sub;
 }
 function gradeAssignment(submissionId, marks, feedback) {
   const sub = dbGetOne(DB.SUBMISSIONS, submissionId);
   if (!sub) return null;
   sub.marks = marks; sub.feedback = feedback; sub.gradedAt = new Date().toISOString();
-  return dbSave(DB.SUBMISSIONS, sub);
+  dbSave(DB.SUBMISSIONS, sub);
+  if (window.sbPushSubmission) sbPushSubmission(sub);
+  return sub;
 }
 
 /* =============================================
