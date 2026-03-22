@@ -434,12 +434,12 @@
           <label>Student Type <span class="req">*</span></label>
           <div class="type-toggle">
             <label class="type-option selected" id="type-new-label" onclick="selectType('new')">
-              <input type="radio" name="Student Type" value="New Student" checked>
-              <span class="type-icon">🆕</span>
-              <span class="type-text">New Student</span>
+              <input type="radio" name="Student Type" value="Current Student" checked>
+              <span class="type-icon">✅</span>
+              <span class="type-text">Current Student</span>
             </label>
             <label class="type-option" id="type-old-label" onclick="selectType('old')">
-              <input type="radio" name="Student Type" value="Existing Student">
+              <input type="radio" name="Student Type" value="Existing / Old Student">
               <span class="type-icon">🎓</span>
               <span class="type-text">Existing / Old Student</span>
             </label>
@@ -450,6 +450,22 @@
         <div class="form-group" id="doj-group" style="display:none;margin-top:14px;">
           <label>Date of Joining</label>
           <input type="date" name="Date of Joining" id="doj-input">
+        </div>
+
+        <!-- Reason for Discontinuation (Old students only) -->
+        <div class="form-group" id="reason-group" style="display:none;margin-top:14px;">
+          <label>Reason for Discontinuation <span class="req">*</span></label>
+          <select name="Reason for Discontinuation" id="reason-select">
+            <option value="">— Select a reason —</option>
+            <option value="Personal / Family reasons">Personal / Family reasons</option>
+            <option value="Financial difficulties">Financial difficulties</option>
+            <option value="Health issues">Health issues</option>
+            <option value="Work / job conflict">Work / job conflict</option>
+            <option value="Relocated">Relocated</option>
+            <option value="Course not suitable">Course not suitable</option>
+            <option value="Other">Other</option>
+          </select>
+          <textarea name="Discontinuation Details" id="reason-details" placeholder="Please describe your reason in detail…" rows="2" style="margin-top:8px;display:none;"></textarea>
         </div>
 
         <!-- Exam Date -->
@@ -466,6 +482,16 @@
             <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#6b7280;font-size:0.85rem;font-weight:500;">₹</span>
             <input type="number" name="Fees Paid (INR)" placeholder="e.g. 5000" min="0" style="padding-left:36px;" required>
           </div>
+        </div>
+
+        <!-- Preferred Username -->
+        <div class="form-group" style="margin-top:14px;">
+          <label>Preferred Username for LMS Login <span class="req">*</span></label>
+          <input type="text" name="Preferred Username" id="username-input"
+            placeholder="e.g. ayesha_k or fatima2025"
+            pattern="[a-zA-Z0-9_.]+" title="Only letters, numbers, underscore, dot"
+            required autocomplete="off">
+          <span style="font-size:0.75rem;color:#6b7280;margin-top:3px;">Letters, numbers, underscore (_) and dot (.) only. No spaces.</span>
         </div>
 
         <!-- Additional Info -->
@@ -507,19 +533,33 @@
     function selectType(type) {
       document.getElementById('type-new-label').classList.toggle('selected', type === 'new');
       document.getElementById('type-old-label').classList.toggle('selected', type === 'old');
-      const dojGroup = document.getElementById('doj-group');
-      const examLabel = document.getElementById('exam-date-label');
-      const examHint  = document.getElementById('exam-date-hint');
+      const dojGroup    = document.getElementById('doj-group');
+      const reasonGroup = document.getElementById('reason-group');
+      const examLabel   = document.getElementById('exam-date-label');
+      const examHint    = document.getElementById('exam-date-hint');
+      const reasonSel   = document.getElementById('reason-select');
       if (type === 'old') {
-        dojGroup.style.display = 'block';
+        dojGroup.style.display    = 'block';
+        reasonGroup.style.display = 'block';
+        reasonSel.required        = true;
         examLabel.innerHTML = 'Exam Date <span class="req">*</span>';
         examHint.textContent = 'Enter the date you wrote / last wrote the exam';
       } else {
-        dojGroup.style.display = 'none';
+        dojGroup.style.display    = 'none';
+        reasonGroup.style.display = 'none';
+        reasonSel.required        = false;
         examLabel.innerHTML = 'Exam Date <span class="req">*</span>';
         examHint.textContent = 'Enter your upcoming exam date';
       }
     }
+
+    // Show "Other" text box when reason = Other
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('reason-select').addEventListener('change', function() {
+        const details = document.getElementById('reason-details');
+        details.style.display = this.value === 'Other' ? 'block' : 'none';
+      });
+    });
 
     function selectCourse(card, name) {
       document.querySelectorAll('.course-card').forEach(c => c.classList.remove('selected'));
@@ -548,12 +588,13 @@
 
       // Collect data
       const data = new FormData(form);
-      const name       = data.get('Student Name');
-      const phone      = data.get('Phone');
-      const courseName = data.get('Course Applied');
-      const fees       = data.get('Fees Paid (INR)');
-      const examDate   = data.get('Exam Date');
+      const name        = data.get('Student Name');
+      const phone       = data.get('Phone');
+      const courseName  = data.get('Course Applied');
+      const fees        = data.get('Fees Paid (INR)');
+      const examDate    = data.get('Exam Date');
       const studentType = data.get('Student Type');
+      const username    = data.get('Preferred Username');
 
       // Submit to FormSubmit
       fetch('https://formsubmit.co/ajax/meeranpmo@gmail.com', {
@@ -564,21 +605,21 @@
       .then(res => res.json())
       .then(res => {
         if (res.success === 'true' || res.success === true) {
-          showSuccess(name, phone, courseName, fees, examDate, studentType);
+          showSuccess(name, phone, courseName, fees, examDate, studentType, username);
         } else {
           showError('Submission failed. Please try again or contact the institute directly.');
         }
       })
       .catch(() => {
-        showSuccess(name, phone, courseName, fees, examDate, studentType);
+        showSuccess(name, phone, courseName, fees, examDate, studentType, username);
       });
     }
 
-    function showSuccess(name, phone, course, fees, examDate, studentType) {
+    function showSuccess(name, phone, course, fees, examDate, studentType, username) {
       document.getElementById('reg-form').style.display = 'none';
       const screen = document.getElementById('success-screen');
       screen.style.display = 'block';
-      const fmt = d => d ? new Date(d).toLocaleDateString('en-PK', {day:'2-digit',month:'short',year:'numeric'}) : '—';
+      const fmt = d => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) : '—';
       document.getElementById('success-detail').innerHTML = `
         <div><span>Name:</span> <strong>${name}</strong></div>
         <div><span>Phone:</span> <strong>${phone}</strong></div>
@@ -586,7 +627,11 @@
         <div><span>Type:</span> <strong>${studentType || '—'}</strong></div>
         <div><span>Exam Date:</span> <strong>${fmt(examDate)}</strong></div>
         <div><span>Fees Paid:</span> <strong>₹${fees ? Number(fees).toLocaleString() : '—'}</strong></div>
-        <div><span>Status:</span> <strong style="color:#10b981;">Application Received ✓</strong></div>
+        <div><span>Preferred Username:</span> <strong>${username || '—'}</strong></div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;">
+          <span>Status:</span> <strong style="color:#10b981;">Application Received ✓</strong><br>
+          <span style="font-size:0.78rem;color:#6b7280;">Our team will review and send your login credentials to your phone/email.</span>
+        </div>
       `;
     }
 
