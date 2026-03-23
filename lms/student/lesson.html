@@ -113,6 +113,27 @@ function renderLesson(lessons, quiz, course) {
               : `<button class="btn btn-primary" onclick="markComplete('${currentLesson.id}')">✓ Mark as Complete</button>`}
           </div>
         </div>
+
+        ${currentLesson.pdf ? (() => {
+          const pdfUrl = currentLesson.pdf.startsWith('http') ? currentLesson.pdf : `https://radiant-naiad-98e62b.netlify.app/lms/${currentLesson.pdf}`;
+          return `
+        <div class="card mt-4">
+          <div class="card-header" style="border-bottom:1px solid var(--gray-200);">
+            <h3 class="text-sm font-semibold">📄 Course Material</h3>
+            <span class="badge badge-gray" style="font-size:0.7rem;">View Only</span>
+          </div>
+          <div class="card-body" style="padding:0;position:relative;" oncontextmenu="return false;">
+            <div style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;"></div>
+            <iframe
+              src="https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true"
+              width="100%" height="520px"
+              style="border:none;display:block;pointer-events:auto;"
+              sandbox="allow-scripts allow-same-origin allow-forms"
+              oncontextmenu="return false;">
+            </iframe>
+          </div>
+        </div>`;
+        })() : ''}
       </div>
 
       <!-- Sidebar -->
