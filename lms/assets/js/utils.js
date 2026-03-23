@@ -229,5 +229,52 @@ function initPage(role) {
   if (sidebar) { sidebar.innerHTML = buildSidebar(user); setActiveNav(); }
   const userNameEl = document.getElementById('user-name');
   if (userNameEl) userNameEl.textContent = user.name;
+  _initMobileNav(sidebar);
   return user;
+}
+
+/* ---- Mobile sidebar toggle ---- */
+function _initMobileNav(sidebar) {
+  // Inject hamburger into .header-left
+  const headerLeft = document.querySelector('.header-left');
+  if (headerLeft && !document.getElementById('hamburger-btn')) {
+    const btn = document.createElement('button');
+    btn.id = 'hamburger-btn';
+    btn.className = 'hamburger-btn';
+    btn.setAttribute('aria-label', 'Toggle menu');
+    btn.innerHTML = '<i class="fa-solid fa-bars"></i>';
+    btn.onclick = toggleSidebar;
+    headerLeft.prepend(btn);
+  }
+  // Inject overlay
+  if (!document.getElementById('sidebar-overlay')) {
+    const ov = document.createElement('div');
+    ov.id = 'sidebar-overlay';
+    ov.className = 'sidebar-overlay';
+    ov.onclick = closeSidebar;
+    document.body.appendChild(ov);
+  }
+  // Auto-close sidebar on nav click (mobile)
+  if (sidebar) {
+    sidebar.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => { if (window.innerWidth <= 768) closeSidebar(); });
+    });
+  }
+}
+
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  if (!sb) return;
+  const open = sb.classList.toggle('open');
+  if (ov) ov.classList.toggle('active', open);
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+
+function closeSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  if (sb) sb.classList.remove('open');
+  if (ov) ov.classList.remove('active');
+  document.body.style.overflow = '';
 }
