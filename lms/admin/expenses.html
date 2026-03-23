@@ -250,6 +250,7 @@ function saveExpense() {
     paidTo: document.getElementById('e-paid-to').value.trim(), date
   };
   dbSave(DB.EXPENSES, expense);
+  sbPushExpense(expense);
   closeModal('add-expense-modal');
   document.getElementById('e-amount').value = '';
   document.getElementById('e-desc').value = '';
