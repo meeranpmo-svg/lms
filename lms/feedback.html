@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Feedback — Ansha Montessori Teacher Training Institute</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#0d4a4a 0%,#1a7a7a 50%,#0d4a4a 100%);min-height:100vh;padding:24px 16px;}
+    .container{max-width:680px;margin:0 auto;}
+    .header{text-align:center;color:#fff;margin-bottom:28px;}
+    .header .logo{width:72px;height:72px;background:rgba(255,255,255,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 16px;border:2px solid rgba(255,255,255,0.3);}
+    .header h1{font-size:1.5rem;font-weight:700;margin-bottom:4px;}
+    .header p{font-size:0.95rem;opacity:0.85;}
+    .card{background:#fff;border-radius:16px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
+    .card-title{font-size:1.2rem;font-weight:700;color:#0d4a4a;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+    .card-sub{font-size:0.85rem;color:#666;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #f0f0f0;}
+    .section-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a7a7a;margin:20px 0 12px;padding:6px 12px;background:#f0fafa;border-radius:6px;border-left:3px solid #1a7a7a;}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    @media(max-width:540px){.form-row{grid-template-columns:1fr;}}
+    .form-group{margin-bottom:16px;}
+    .form-group label{display:block;font-size:0.82rem;font-weight:600;color:#333;margin-bottom:6px;}
+    .form-group label .req{color:#e53e3e;}
+    .form-control{width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;color:#333;transition:border-color .2s,box-shadow .2s;background:#fafafa;}
+    .form-control:focus{outline:none;border-color:#1a7a7a;box-shadow:0 0 0 3px rgba(26,122,122,0.12);background:#fff;}
+    textarea.form-control{resize:vertical;min-height:100px;}
+    .session-options{display:flex;gap:12px;flex-wrap:wrap;}
+    .session-btn{flex:1;min-width:120px;padding:12px 16px;border:2px solid #e2e8f0;border-radius:10px;background:#fafafa;cursor:pointer;text-align:center;transition:all .2s;font-size:0.88rem;}
+    .session-btn:hover{border-color:#1a7a7a;background:#f0fafa;}
+    .session-btn.active{border-color:#1a7a7a;background:#1a7a7a;color:#fff;font-weight:600;}
+    .session-btn input{display:none;}
+    .session-btn .day{font-size:1.4rem;display:block;margin-bottom:4px;}
+    .rating-row{display:flex;gap:8px;flex-wrap:wrap;}
+    .rating-btn{flex:1;min-width:60px;padding:10px 8px;border:2px solid #e2e8f0;border-radius:8px;background:#fafafa;cursor:pointer;text-align:center;font-size:0.82rem;transition:all .2s;}
+    .rating-btn:hover{border-color:#1a7a7a;}
+    .rating-btn.active{border-color:#1a7a7a;background:#1a7a7a;color:#fff;font-weight:600;}
+    .rating-btn .star{font-size:1.2rem;display:block;}
+    .submit-btn{width:100%;padding:14px;background:linear-gradient(135deg,#1a7a7a,#0d5a5a);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer;transition:all .2s;margin-top:24px;letter-spacing:0.02em;}
+    .submit-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(26,122,122,0.35);}
+    .submit-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+    .success-state{text-align:center;padding:40px 20px;display:none;}
+    .success-icon{font-size:4rem;margin-bottom:16px;}
+    .success-state h2{color:#1a7a7a;font-size:1.5rem;margin-bottom:8px;}
+    .success-state p{color:#666;font-size:0.95rem;}
+    .error-msg{color:#e53e3e;font-size:0.8rem;margin-top:4px;display:none;}
+    .fee-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    @media(max-width:540px){.fee-row{grid-template-columns:1fr;}}
+    .currency-wrap{position:relative;}
+    .currency-wrap .sym{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#666;font-weight:600;}
+    .currency-wrap .form-control{padding-left:28px;}
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="logo">🏫</div>
+    <h1>Ansha Montessori Teacher Training Institute</h1>
+    <p>Student Feedback Form — 2026 Batch</p>
+  </div>
+
+  <div class="card">
+    <!-- Form -->
+    <div id="form-section">
+      <div class="card-title">📋 Student Feedback</div>
+      <div class="card-sub">Your feedback helps us improve. Please fill all required fields marked with <span style="color:#e53e3e;">*</span></div>
+
+      <form id="feedbackForm" novalidate>
+
+        <!-- Personal Info -->
+        <div class="section-label">👤 Personal Information</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Student Name <span class="req">*</span></label>
+            <input type="text" id="f-name" class="form-control" placeholder="Your full name" required>
+            <div class="error-msg" id="err-name">Please enter your name.</div>
+          </div>
+          <div class="form-group">
+            <label>WhatsApp Number <span class="req">*</span></label>
+            <input type="tel" id="f-whatsapp" class="form-control" placeholder="e.g. 9876543210" required>
+            <div class="error-msg" id="err-whatsapp">Please enter your WhatsApp number.</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="f-email" class="form-control" placeholder="your@email.com">
+        </div>
+
+        <!-- Course Info -->
+        <div class="section-label">📚 Course Information</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Course Enrolled <span class="req">*</span></label>
+            <select id="f-course" class="form-control" required>
+              <option value="">-- Select Course --</option>
+              <option>Advance Montessori Teacher Training</option>
+              <option>Spoken English</option>
+              <option>Phonics Training</option>
+              <option>Child Psychology</option>
+            </select>
+            <div class="error-msg" id="err-course">Please select your course.</div>
+          </div>
+          <div class="form-group">
+            <label>Date of Joining <span class="req">*</span></label>
+            <input type="date" id="f-doj" class="form-control" required>
+            <div class="error-msg" id="err-doj">Please enter your joining date.</div>
+          </div>
+        </div>
+
+        <!-- Fees -->
+        <div class="section-label">💰 Fee Details</div>
+        <div class="fee-row">
+          <div class="form-group">
+            <label>Fees Paid (₹)</label>
+            <div class="currency-wrap">
+              <span class="sym">₹</span>
+              <input type="number" id="f-paid" class="form-control" placeholder="0" min="0">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Pending Fees (₹)</label>
+            <div class="currency-wrap">
+              <span class="sym">₹</span>
+              <input type="number" id="f-pending" class="form-control" placeholder="0" min="0">
+            </div>
+          </div>
+        </div>
+
+        <!-- Online Session -->
+        <div class="section-label">🗓️ Online Session Preference <span style="color:#e53e3e;font-size:0.9rem;">*</span></div>
+        <p style="font-size:0.82rem;color:#666;margin-bottom:12px;">Online sessions are held on Tuesday and Saturday. Please select your preferred day(s).</p>
+        <div class="session-options" id="session-options">
+          <div class="session-btn" onclick="toggleSession(this,'Tuesday')">
+            <span class="day">📅</span>
+            Tuesday
+          </div>
+          <div class="session-btn" onclick="toggleSession(this,'Saturday')">
+            <span class="day">📅</span>
+            Saturday
+          </div>
+          <div class="session-btn" onclick="toggleSession(this,'Both')">
+            <span class="day">📅📅</span>
+            Both Days
+          </div>
+        </div>
+        <div class="error-msg" id="err-session" style="margin-top:6px;">Please select at least one session.</div>
+
+        <!-- Feedback -->
+        <div class="section-label">⭐ Teaching Feedback</div>
+        <div class="form-group">
+          <label>Overall Rating <span class="req">*</span></label>
+          <div class="rating-row" id="rating-row">
+            <div class="rating-btn" onclick="setRating(1,this)"><span class="star">⭐</span>Poor</div>
+            <div class="rating-btn" onclick="setRating(2,this)"><span class="star">⭐⭐</span>Fair</div>
+            <div class="rating-btn" onclick="setRating(3,this)"><span class="star">⭐⭐⭐</span>Good</div>
+            <div class="rating-btn" onclick="setRating(4,this)"><span class="star">⭐⭐⭐⭐</span>Very Good</div>
+            <div class="rating-btn" onclick="setRating(5,this)"><span class="star">⭐⭐⭐⭐⭐</span>Excellent</div>
+          </div>
+          <div class="error-msg" id="err-rating">Please select a rating.</div>
+        </div>
+        <div class="form-group">
+          <label>Feedback About Teaching <span class="req">*</span></label>
+          <textarea id="f-feedback" class="form-control" placeholder="Share your experience — teaching quality, course content, class pace, what you liked, what can be improved…" required></textarea>
+          <div class="error-msg" id="err-feedback">Please write your feedback.</div>
+        </div>
+        <div class="form-group">
+          <label>Suggestions for Improvement</label>
+          <textarea id="f-suggestions" class="form-control" style="min-height:70px;" placeholder="Any additional suggestions or comments…"></textarea>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submit-btn">📤 Submit Feedback</button>
+      </form>
+    </div>
+
+    <!-- Success State -->
+    <div class="success-state" id="success-section">
+      <div class="success-icon">🎉</div>
+      <h2>Thank You!</h2>
+      <p>Your feedback has been submitted successfully.<br>We appreciate your valuable response.</p>
+      <p style="margin-top:16px;font-size:0.85rem;color:#1a7a7a;font-weight:600;">— Ansha Montessori Teacher Training Institute —</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPA_URL = 'https://twzcefikdychhsjwjekf.supabase.co';
+const SUPA_KEY = 'sb_publishable_GijBRmulhuyIp3bigyhMUw_hVmQiB0y';
+const _sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let selectedSessions = [];
+let selectedRating = 0;
+
+function toggleSession(el, val) {
+  // If "Both" selected, deselect others and vice versa
+  if (val === 'Both') {
+    selectedSessions = selectedSessions.includes('Both') ? [] : ['Both'];
+  } else {
+    selectedSessions = selectedSessions.filter(s => s !== 'Both');
+    if (selectedSessions.includes(val)) {
+      selectedSessions = selectedSessions.filter(s => s !== val);
+    } else {
+      selectedSessions.push(val);
+    }
+  }
+  document.querySelectorAll('.session-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.session-btn').forEach(btn => {
+    const txt = btn.textContent.trim();
+    if (selectedSessions.some(s => txt.includes(s))) btn.classList.add('active');
+  });
+  document.getElementById('err-session').style.display = 'none';
+}
+
+function setRating(val, el) {
+  selectedRating = val;
+  document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('err-rating').style.display = 'none';
+}
+
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideErr(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+document.getElementById('feedbackForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  let valid = true;
+
+  const name     = document.getElementById('f-name').value.trim();
+  const whatsapp = document.getElementById('f-whatsapp').value.trim();
+  const email    = document.getElementById('f-email').value.trim();
+  const course   = document.getElementById('f-course').value;
+  const doj      = document.getElementById('f-doj').value;
+  const paid     = document.getElementById('f-paid').value;
+  const pending  = document.getElementById('f-pending').value;
+  const feedback = document.getElementById('f-feedback').value.trim();
+  const suggestions = document.getElementById('f-suggestions').value.trim();
+
+  if (!name)     { showErr('err-name','Please enter your name.'); valid=false; } else hideErr('err-name');
+  if (!whatsapp) { showErr('err-whatsapp','Please enter your WhatsApp number.'); valid=false; } else hideErr('err-whatsapp');
+  if (!course)   { showErr('err-course','Please select your course.'); valid=false; } else hideErr('err-course');
+  if (!doj)      { showErr('err-doj','Please enter your joining date.'); valid=false; } else hideErr('err-doj');
+  if (!selectedSessions.length) { document.getElementById('err-session').style.display='block'; valid=false; }
+  if (!selectedRating) { document.getElementById('err-rating').style.display='block'; valid=false; }
+  if (!feedback) { showErr('err-feedback','Please write your feedback.'); valid=false; } else hideErr('err-feedback');
+
+  if (!valid) return;
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Submitting…';
+
+  const payload = {
+    student_name: name,
+    whatsapp: whatsapp,
+    email: email || null,
+    course: course,
+    date_of_join: doj,
+    fees_paid: paid ? parseInt(paid) : 0,
+    fees_pending: pending ? parseInt(pending) : 0,
+    session_preference: selectedSessions.join(', '),
+    rating: selectedRating,
+    feedback: feedback,
+    suggestions: suggestions || null,
+    submitted_at: new Date().toISOString()
+  };
+
+  const { error } = await _sb.from('feedback').insert(payload);
+
+  if (error) {
+    // Fallback: store locally if Supabase fails
+    console.error('Supabase error:', error);
+    const local = JSON.parse(localStorage.getItem('lms_feedback') || '[]');
+    local.push({ ...payload, id: Date.now().toString(36) });
+    localStorage.setItem('lms_feedback', JSON.stringify(local));
+  }
+
+  document.getElementById('form-section').style.display = 'none';
+  document.getElementById('success-section').style.display = 'block';
+});
+</script>
+</body>
+</html>
