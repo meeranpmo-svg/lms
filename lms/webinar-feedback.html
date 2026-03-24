@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Webinar Feedback — Ansha Training Academy</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',sans-serif;background:linear-gradient(135deg,#1e1b4b 0%,#3730a3 50%,#1e1b4b 100%);min-height:100vh;padding:24px 16px;}
+    .container{max-width:600px;margin:0 auto;}
+    .header{text-align:center;color:#fff;margin-bottom:22px;}
+    .header .logo{width:68px;height:68px;background:rgba(255,255,255,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 14px;border:2px solid rgba(255,255,255,0.25);}
+    .header h1{font-size:1.4rem;font-weight:700;margin-bottom:4px;}
+    .header p{font-size:0.88rem;opacity:0.8;}
+    .card{background:#fff;border-radius:16px;padding:30px;box-shadow:0 20px 60px rgba(0,0,0,0.25);}
+    .card-title{font-size:1.15rem;font-weight:700;color:#1e1b4b;margin-bottom:4px;}
+    .card-sub{font-size:0.83rem;color:#666;margin-bottom:22px;padding-bottom:18px;border-bottom:1px solid #f0f0f0;}
+    .section-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#3730a3;margin:18px 0 12px;padding:6px 12px;background:#f5f3ff;border-radius:6px;border-left:3px solid #3730a3;}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    @media(max-width:500px){.form-row{grid-template-columns:1fr;}}
+    .form-group{margin-bottom:14px;}
+    .form-group label{display:block;font-size:0.82rem;font-weight:600;color:#333;margin-bottom:6px;}
+    .req{color:#e53e3e;}
+    .form-control{width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.9rem;color:#333;transition:border-color .2s;background:#fafafa;}
+    .form-control:focus{outline:none;border-color:#3730a3;box-shadow:0 0 0 3px rgba(55,48,163,0.1);background:#fff;}
+    textarea.form-control{resize:vertical;min-height:90px;}
+
+    /* Rating */
+    .rating-row{display:flex;gap:8px;flex-wrap:wrap;}
+    .rating-btn{flex:1;min-width:56px;padding:10px 6px;border:2px solid #e2e8f0;border-radius:8px;background:#fafafa;cursor:pointer;text-align:center;font-size:0.78rem;transition:all .2s;}
+    .rating-btn:hover{border-color:#3730a3;}
+    .rating-btn.active{border-color:#3730a3;background:#3730a3;color:#fff;font-weight:600;}
+    .rating-btn .star{font-size:1.1rem;display:block;margin-bottom:2px;}
+
+    /* Join interest */
+    .join-options{display:flex;gap:10px;flex-wrap:wrap;}
+    .join-btn{flex:1;min-width:100px;padding:12px 10px;border:2px solid #e2e8f0;border-radius:10px;background:#fafafa;cursor:pointer;text-align:center;transition:all .2s;font-size:0.88rem;}
+    .join-btn:hover{border-color:#3730a3;background:#f5f3ff;}
+    .join-btn.yes.active{border-color:#16a34a;background:#16a34a;color:#fff;font-weight:600;}
+    .join-btn.maybe.active{border-color:#d97706;background:#d97706;color:#fff;font-weight:600;}
+    .join-btn.no.active{border-color:#dc2626;background:#dc2626;color:#fff;font-weight:600;}
+
+    .error-msg{color:#e53e3e;font-size:0.8rem;margin-top:4px;display:none;}
+    .submit-btn{width:100%;padding:14px;background:linear-gradient(135deg,#3730a3,#1e1b4b);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer;transition:all .2s;margin-top:20px;}
+    .submit-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(55,48,163,0.4);}
+    .submit-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+    .success-state{text-align:center;padding:36px 16px;display:none;}
+    .success-icon{font-size:4rem;margin-bottom:14px;}
+    .success-state h2{color:#3730a3;font-size:1.4rem;margin-bottom:8px;}
+    .success-state p{color:#555;font-size:0.9rem;line-height:1.7;}
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">🎙️</div>
+    <h1>Post-Webinar Feedback</h1>
+    <p>Spoken English Webinar — 26 March 2026<br>Ansha Training Academy</p>
+  </div>
+
+  <div class="card">
+    <div id="form-section">
+      <div class="card-title">⭐ Share Your Experience</div>
+      <div class="card-sub">Your feedback helps us improve future sessions. Thank you for attending!</div>
+
+      <form id="fbForm" novalidate>
+
+        <div class="section-label">👤 Your Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Your Name <span class="req">*</span></label>
+            <input type="text" id="f-name" class="form-control" placeholder="Your name" required>
+            <div class="error-msg" id="err-name">Please enter your name.</div>
+          </div>
+          <div class="form-group">
+            <label>WhatsApp Number <span class="req">*</span></label>
+            <input type="tel" id="f-whatsapp" class="form-control" placeholder="e.g. 9876543210">
+            <div class="error-msg" id="err-wa">Please enter your number.</div>
+          </div>
+        </div>
+
+        <div class="section-label">⭐ Webinar Rating</div>
+        <div class="form-group">
+          <label>How would you rate this webinar? <span class="req">*</span></label>
+          <div class="rating-row" id="rating-row">
+            <div class="rating-btn" onclick="setRating(1,this)"><span class="star">⭐</span>Poor</div>
+            <div class="rating-btn" onclick="setRating(2,this)"><span class="star">⭐⭐</span>Fair</div>
+            <div class="rating-btn" onclick="setRating(3,this)"><span class="star">⭐⭐⭐</span>Good</div>
+            <div class="rating-btn" onclick="setRating(4,this)"><span class="star">⭐⭐⭐⭐</span>Very Good</div>
+            <div class="rating-btn" onclick="setRating(5,this)"><span class="star">⭐⭐⭐⭐⭐</span>Excellent</div>
+          </div>
+          <div class="error-msg" id="err-rating">Please select a rating.</div>
+        </div>
+
+        <div class="form-group">
+          <label>What did you like most about the webinar? <span class="req">*</span></label>
+          <textarea id="f-liked" class="form-control" placeholder="Share what you enjoyed — content, teaching style, examples…" required></textarea>
+          <div class="error-msg" id="err-liked">Please share what you liked.</div>
+        </div>
+
+        <div class="form-group">
+          <label>Any suggestions to improve future webinars?</label>
+          <textarea id="f-suggestions" class="form-control" style="min-height:70px;" placeholder="Topics you'd like covered, session length, format…"></textarea>
+        </div>
+
+        <div class="section-label">📚 Spoken English Course Interest</div>
+        <div class="form-group">
+          <label>Would you like to join our <strong>Spoken English Course</strong>? <span class="req">*</span></label>
+          <div class="join-options">
+            <div class="join-btn yes"  onclick="setJoin('Yes',this)">✅ Yes, I'm Interested!</div>
+            <div class="join-btn maybe" onclick="setJoin('Maybe',this)">🤔 Maybe Later</div>
+            <div class="join-btn no"   onclick="setJoin('No',this)">❌ Not Right Now</div>
+          </div>
+          <div class="error-msg" id="err-join">Please select an option.</div>
+        </div>
+
+        <div class="form-group" id="contact-pref-group">
+          <label>If yes, how should we contact you?</label>
+          <select id="f-contact" class="form-control">
+            <option value="">-- Select --</option>
+            <option>WhatsApp Message</option>
+            <option>WhatsApp Call</option>
+            <option>Phone Call</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Any questions about the Spoken English Course?</label>
+          <textarea id="f-questions" class="form-control" style="min-height:65px;" placeholder="Ask anything about fees, duration, schedule, curriculum…"></textarea>
+        </div>
+
+        <button type="submit" class="submit-btn" id="fb-btn">📤 Submit Feedback</button>
+      </form>
+    </div>
+
+    <div class="success-state" id="success-section">
+      <div class="success-icon">🙏</div>
+      <h2>Thank You!</h2>
+      <p>Your feedback has been recorded successfully.<br><br>
+      We're glad you attended our webinar!<br><br>
+      Our team will reach out to you soon regarding the <strong>Spoken English Course</strong>.<br><br>
+      <span style="color:#3730a3;font-weight:600;">— Ansha Training Academy —</span></p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPA_URL = 'https://twzcefikdychhsjwjekf.supabase.co';
+const SUPA_KEY = 'sb_publishable_GijBRmulhuyIp3bigyhMUw_hVmQiB0y';
+const _sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let selectedRating = 0;
+let selectedJoin   = '';
+
+function setRating(val, el) {
+  selectedRating = val;
+  document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('err-rating').style.display = 'none';
+}
+
+function setJoin(val, el) {
+  selectedJoin = val;
+  document.querySelectorAll('.join-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('err-join').style.display = 'none';
+  document.getElementById('contact-pref-group').style.display = val === 'Yes' ? 'block' : 'none';
+}
+document.getElementById('contact-pref-group').style.display = 'none';
+
+document.getElementById('fbForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  let valid = true;
+  const name     = document.getElementById('f-name').value.trim();
+  const whatsapp = document.getElementById('f-whatsapp').value.trim();
+  const liked    = document.getElementById('f-liked').value.trim();
+
+  if (!name)           { document.getElementById('err-name').style.display='block'; valid=false; }
+  else                 { document.getElementById('err-name').style.display='none'; }
+  if (!whatsapp)       { document.getElementById('err-wa').style.display='block'; valid=false; }
+  else                 { document.getElementById('err-wa').style.display='none'; }
+  if (!selectedRating) { document.getElementById('err-rating').style.display='block'; valid=false; }
+  if (!liked)          { document.getElementById('err-liked').style.display='block'; valid=false; }
+  else                 { document.getElementById('err-liked').style.display='none'; }
+  if (!selectedJoin)   { document.getElementById('err-join').style.display='block'; valid=false; }
+
+  if (!valid) return;
+
+  const btn = document.getElementById('fb-btn');
+  btn.disabled = true; btn.textContent = '⏳ Submitting…';
+
+  await _sb.from('webinar_feedback').insert({
+    name, whatsapp,
+    webinar: 'Spoken English — 26 March 2026',
+    rating: selectedRating,
+    liked,
+    suggestions:    document.getElementById('f-suggestions').value.trim() || null,
+    join_interest:  selectedJoin,
+    contact_pref:   document.getElementById('f-contact').value || null,
+    questions:      document.getElementById('f-questions').value.trim() || null,
+    submitted_at:   new Date().toISOString()
+  });
+
+  document.getElementById('form-section').style.display = 'none';
+  document.getElementById('success-section').style.display = 'block';
+});
+</script>
+</body>
+</html>
