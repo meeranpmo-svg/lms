@@ -169,6 +169,7 @@ function buildSidebar(user) {
     <div class="nav-section-title">Academic</div>
     <a href="courses.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-book-open"></i></span> Courses</a>
     <a href="lessons.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-video"></i></span> Lessons & PDFs</a>
+    <a href="recordings.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-circle-play"></i></span> Class Recordings</a>
     <a href="results.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-trophy"></i></span> Exam Results</a>
     <div class="nav-section-title">Finance</div>
     <a href="payment.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-receipt"></i></span> Payment</a>
@@ -195,6 +196,7 @@ function buildSidebar(user) {
     <a href="courses.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-compass"></i></span> Browse Courses</a>
     <div class="nav-section-title">My Learning</div>
     <a href="my-courses.html"    class="nav-item"><span class="nav-icon"><i class="fa-solid fa-graduation-cap"></i></span> My Courses</a>
+    <a href="recordings.html"    class="nav-item"><span class="nav-icon"><i class="fa-solid fa-circle-play"></i></span> Class Recordings</a>
     <a href="assignments.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-file-lines"></i></span> Assignments</a>
     <a href="results.html"       class="nav-item"><span class="nav-icon"><i class="fa-solid fa-trophy"></i></span> My Results</a>
     <a href="profile.html"       class="nav-item"><span class="nav-icon"><i class="fa-solid fa-user-circle"></i></span> Profile & Certs</a>`;
