@@ -34,6 +34,38 @@
       <!-- Stats -->
       <div class="stats-grid" id="student-stats"></div>
 
+      <!-- Quick Access -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-4);margin-top:var(--space-5);">
+        <a href="lesson.html" style="text-decoration:none;">
+          <div class="card" style="text-align:center;padding:var(--space-5);cursor:pointer;transition:transform .15s,box-shadow .15s;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <div style="font-size:2.2rem;margin-bottom:8px;">📖</div>
+            <div class="font-semibold text-sm">My Lessons</div>
+            <div class="text-xs text-muted mt-1">Continue learning</div>
+          </div>
+        </a>
+        <a href="recordings.html" style="text-decoration:none;">
+          <div class="card" style="text-align:center;padding:var(--space-5);cursor:pointer;transition:transform .15s,box-shadow .15s;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <div style="font-size:2.2rem;margin-bottom:8px;">🎥</div>
+            <div class="font-semibold text-sm">Class Recordings</div>
+            <div class="text-xs text-muted mt-1">Watch missed classes</div>
+          </div>
+        </a>
+        <a href="results.html" style="text-decoration:none;">
+          <div class="card" style="text-align:center;padding:var(--space-5);cursor:pointer;transition:transform .15s,box-shadow .15s;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <div style="font-size:2.2rem;margin-bottom:8px;">📝</div>
+            <div class="font-semibold text-sm">Assessments</div>
+            <div class="text-xs text-muted mt-1">Take quizzes &amp; tests</div>
+          </div>
+        </a>
+        <a href="assignments.html" style="text-decoration:none;">
+          <div class="card" style="text-align:center;padding:var(--space-5);cursor:pointer;transition:transform .15s,box-shadow .15s;" onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <div style="font-size:2.2rem;margin-bottom:8px;">📋</div>
+            <div class="font-semibold text-sm">Assignments</div>
+            <div class="text-xs text-muted mt-1">Submit your work</div>
+          </div>
+        </a>
+      </div>
+
       <!-- Enrolled Courses & Notices -->
       <div style="display:grid;grid-template-columns:1fr 340px;gap:var(--space-5);margin-top:var(--space-5);">
 
@@ -63,9 +95,7 @@
     </main>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../assets/js/data.js"></script>
-<script src="../assets/js/supabase.js"></script>
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/utils.js"></script>
 <script>
