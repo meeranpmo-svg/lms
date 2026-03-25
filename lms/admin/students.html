@@ -25,7 +25,19 @@
           <h1>Student Management</h1>
           <p id="student-count">Loading…</p>
         </div>
-        <button class="btn btn-primary" onclick="openModal('add-student-modal')">+ Enroll New Student</button>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-ghost" id="sync-btn" onclick="syncStudents()">🔄 Sync New Registrations</button>
+          <button class="btn btn-primary" onclick="openModal('add-student-modal')">+ Enroll New Student</button>
+        </div>
+      </div>
+
+      <!-- New Registrations Banner -->
+      <div id="new-reg-banner" style="display:none;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:none;align-items:center;gap:12px;">
+        <span style="font-size:1.4rem;">🆕</span>
+        <div>
+          <strong style="color:#166534;" id="new-reg-count"></strong>
+          <span style="color:#15803d;font-size:0.88rem;margin-left:6px;">registered via the self-registration link</span>
+        </div>
       </div>
 
       <!-- Filter Bar -->
@@ -127,12 +139,29 @@
 <script src="../assets/js/utils.js"></script>
 <script>
 const user = initPage('admin');
-if (user) { sbSyncToLocal(user.id, 'admin').then(renderPage).catch(renderPage); }
+if (user) renderPage();
+
+async function syncStudents() {
+  const btn = document.getElementById('sync-btn');
+  btn.textContent = '⏳ Syncing…';
+  btn.disabled = true;
+  try {
+    await sbSyncToLocal(user.id, 'admin');
+    renderStudents();
+    showToast('Student list refreshed from database', 'success');
+  } catch(e) {
+    showToast('Sync failed: ' + e.message, 'error');
+  }
+  btn.textContent = '🔄 Sync New Registrations';
+  btn.disabled = false;
+}
 
 function renderPage() {
   populateCourseFilters();
   renderStudents();
   setupSearch();
+  // Auto-sync on page load
+  if (window.sbSyncToLocal) sbSyncToLocal(user.id, 'admin').then(() => renderStudents()).catch(()=>{});
 }
 
 function populateCourseFilters() {
@@ -157,17 +186,32 @@ function renderStudents() {
   const searchQ = (document.getElementById('search-input').value || '').toLowerCase();
   if (searchQ) filtered = filtered.filter(s => s.name.toLowerCase().includes(searchQ) || s.email.toLowerCase().includes(searchQ));
 
+  // Sort newest first
+  filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+  // Show new registrations banner (last 7 days)
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const newCount = filtered.filter(s => new Date(s.createdAt) > sevenDaysAgo).length;
+  const banner = document.getElementById('new-reg-banner');
+  if (newCount > 0) {
+    document.getElementById('new-reg-count').textContent = `${newCount} new student${newCount > 1 ? 's' : ''}`;
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+
   const html = filtered.map(s => {
     const studentEnrolls = enrollments.filter(e => e.studentId === s.id);
     const avgProgress = studentEnrolls.length
       ? Math.round(studentEnrolls.reduce((sum, e) => sum + e.progress, 0) / studentEnrolls.length)
       : 0;
     const hasPending = studentEnrolls.some(e => e.feeStatus === 'pending');
-    return `<tr>
+    const isNew = new Date(s.createdAt) > sevenDaysAgo;
+    return `<tr${isNew ? ' style="background:#f0fdf4;"' : ''}>
       <td><div class="flex items-center gap-3">
         <div class="avatar">${s.avatar || getInitials(s.name)}</div>
         <div>
-          <div class="font-medium">${s.name}</div>
+          <div class="font-medium">${s.name} ${isNew ? '<span style="background:#16a34a;color:#fff;font-size:0.65rem;padding:2px 7px;border-radius:20px;font-weight:700;margin-left:4px;">NEW</span>' : ''}</div>
           <div class="text-xs text-muted">${s.email}</div>
         </div>
       </div></td>
