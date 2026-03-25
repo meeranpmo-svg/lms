@@ -95,17 +95,14 @@
         </button>
       </form>
 
-      <!-- Demo Credentials -->
-      <div class="demo-creds">
-        <div class="demo-title"><i class="fa-solid fa-key"></i> Demo Credentials</div>
-        <div id="demo-info">
-          <p>Email: <code>ayesha@student.edu</code></p>
-          <p>Password: <code>student123</code></p>
-        </div>
+      <!-- Register Link -->
+      <div style="text-align:center;margin-top:18px;padding:14px;background:#f5f3ff;border-radius:10px;border:1px solid #e9d5ff;">
+        <p style="font-size:0.85rem;color:#555;margin-bottom:6px;">New student? Create your account</p>
+        <a href="register.html" style="display:inline-block;background:linear-gradient(135deg,#3730a3,#6d28d9);color:#fff;padding:9px 24px;border-radius:8px;font-size:0.88rem;font-weight:700;text-decoration:none;">Register Now →</a>
       </div>
 
       <div class="login-footer">
-        <p>© 2024 Ansha Montessori Teacher Training Institute</p>
+        <p>© 2025 Ansha Montessori Teacher Training Institute</p>
       </div>
     </div>
   </div>
@@ -123,27 +120,12 @@
   const existingSession = getSession();
   if (existingSession) redirectAfterLogin(existingSession.role);
 
-  const demoCreds = {
-    student: { email: 'ayesha@student.edu', password: 'student123' },
-    teacher: { email: 'fatima@ansha.edu', password: 'teacher123' },
-    admin:   { email: 'admin@ansha.edu',   password: 'admin123' }
-  };
-
   function selectRole(role, btn) {
     selectedRole = role;
     document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
-    const creds = demoCreds[role];
-    const icons = { student: '👩‍🎓', teacher: '👩‍🏫', admin: '👨‍💼' };
-    document.getElementById('demo-info').innerHTML = `
-      <p>Email: <code>${creds.email}</code></p>
-      <p>Password: <code>${creds.password}</code></p>`;
-    // Auto-fill for convenience
-    document.getElementById('email').value = creds.email;
-    document.getElementById('password').value = creds.password;
   }
 
-  // Pre-fill student demo
   selectRole('student', document.querySelector('.role-tab[data-role="student"]'));
 
   function togglePassword() {
