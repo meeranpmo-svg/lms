@@ -122,14 +122,14 @@ function sbPushEnrollment(e) {
     id: e.id, student_id: e.studentId, course_id: e.courseId,
     progress: e.progress || 0, status: e.status || 'active',
     fee_status: e.feeStatus || 'pending'
-  }, { onConflict: 'id' }).catch(console.error);
+  }, { onConflict: 'id' }).then(null, console.error);
 }
 
 function sbPushProgress(p) {
   _sb.from('progress').upsert({
     id: p.id, student_id: p.studentId, lesson_id: p.lessonId,
     completed: p.completed, completed_at: p.completedAt
-  }, { onConflict: 'student_id,lesson_id' }).catch(console.error);
+  }, { onConflict: 'student_id,lesson_id' }).then(null, console.error);
 }
 
 function sbPushSubmission(s) {
@@ -140,7 +140,7 @@ function sbPushSubmission(s) {
     answers: s.answers || null, answer: s.answer || null,
     marks: s.marks ?? null, feedback: s.feedback || null,
     submitted_at: s.submittedAt, graded_at: s.gradedAt || null
-  }, { onConflict: 'id' }).catch(console.error);
+  }, { onConflict: 'id' }).then(null, console.error);
 }
 
 function sbPushFee(f) {
@@ -149,7 +149,7 @@ function sbPushFee(f) {
     amount: f.amount, due_date: f.dueDate || null,
     paid_date: f.paidDate || null, status: f.status || 'pending',
     description: f.description || null
-  }, { onConflict: 'id' }).catch(console.error);
+  }, { onConflict: 'id' }).then(null, console.error);
 }
 
 function sbPushExpense(e) {
@@ -157,7 +157,7 @@ function sbPushExpense(e) {
     id: e.id, category: e.category, amount: e.amount,
     description: e.description || null,
     date: e.date || new Date().toISOString().split('T')[0]
-  }, { onConflict: 'id' }).catch(console.error);
+  }, { onConflict: 'id' }).then(null, console.error);
 }
 
 /* ── Create student account in Supabase ─────────────────── */
