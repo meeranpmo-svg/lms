@@ -66,6 +66,9 @@
         </a>
       </div>
 
+      <!-- Class Schedule Banner -->
+      <div id="schedule-banner" style="margin-top:var(--space-5);"></div>
+
       <!-- Enrolled Courses & Notices -->
       <div style="display:grid;grid-template-columns:1fr 340px;gap:var(--space-5);margin-top:var(--space-5);">
 
@@ -106,9 +109,54 @@ function renderPage() {
   document.getElementById('welcome-msg').textContent = `Welcome back, ${user.name.split(' ')[0]}! 👋`;
   document.getElementById('user-name').textContent = user.name;
   renderStats();
+  renderScheduleBanner();
   renderEnrolledCourses();
   renderAssignments();
   renderNotices();
+}
+
+function renderScheduleBanner() {
+  const SCHEDULE = [
+    {
+      course: 'Child Psychology',
+      icon: '🧠',
+      color: '#7c3aed',
+      day: 3, // Wednesday (0=Sun,1=Mon,...,3=Wed)
+      dayName: 'Wednesday',
+      time: 'Weekly Class',
+      calLink: 'https://calendar.app.google/aqELq3otVWqVszgdA'
+    }
+  ];
+
+  const today = new Date();
+  const cards = SCHEDULE.map(s => {
+    // Find next occurrence of the day
+    const diff = (s.day - today.getDay() + 7) % 7 || 7;
+    const next = new Date(today);
+    next.setDate(today.getDate() + diff);
+    const isToday = diff === 0;
+    const isTomorrow = diff === 1;
+    const label = isToday ? '🔴 Today' : isTomorrow ? '🟡 Tomorrow' : `📅 ${next.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'})}`;
+
+    return `
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;background:linear-gradient(135deg,${s.color}15,${s.color}08);border:1.5px solid ${s.color}30;border-radius:14px;padding:16px 20px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="width:48px;height:48px;background:${s.color};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">${s.icon}</div>
+        <div>
+          <div style="font-weight:700;font-size:0.95rem;color:#1e1b4b;">${s.course} — Live Class</div>
+          <div style="font-size:0.8rem;color:#555;margin-top:2px;">Every ${s.dayName} &nbsp;·&nbsp; ${s.time}</div>
+          <div style="font-size:0.78rem;font-weight:600;color:${s.color};margin-top:4px;">Next class: ${label}</div>
+        </div>
+      </div>
+      <a href="${s.calLink}" target="_blank" rel="noopener"
+         style="display:inline-flex;align-items:center;gap:6px;background:${s.color};color:#fff;padding:9px 18px;border-radius:8px;font-size:0.82rem;font-weight:700;text-decoration:none;white-space:nowrap;transition:opacity .2s;"
+         onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+        📅 Add to Google Calendar
+      </a>
+    </div>`;
+  }).join('');
+
+  document.getElementById('schedule-banner').innerHTML = cards;
 }
 
 function renderStats() {
