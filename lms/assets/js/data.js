@@ -468,3 +468,46 @@ initSeedData();
   const existing = dbGet(DB.LESSONS).map(l => l.id);
   books.forEach(b => { if (!existing.includes(b.id)) dbSave(DB.LESSONS, b); });
 })();
+
+/* ---- Migration: seed Montessori class recordings ---- */
+(function migrateRecordings() {
+  const existing = JSON.parse(localStorage.getItem('lms_recordings') || '[]');
+  // Check if our seeded recordings are already present
+  if (existing.some(r => r.id === 'mr1')) return;
+
+  const seed = [
+    { id:'mr1',  courseId:'c1', title:'Montessori 1',  date:'2025-05-17', driveUrl:'https://drive.google.com/file/d/1e6iXW8abfIVp7nOzP-MfdQR6FkPxQWzP/view', description:'Montessori Teacher Training — Session 1' },
+    { id:'mr2',  courseId:'c1', title:'Montessori 2',  date:'2025-05-31', driveUrl:'https://drive.google.com/file/d/1TTYAQKNV4QztyRvpHz9ZMdXNLgJ4Mu2N/view', description:'Montessori Teacher Training — Session 2' },
+    { id:'mr3',  courseId:'c1', title:'Montessori 3',  date:'2025-06-10', driveUrl:'https://drive.google.com/file/d/1r7yZB47ouL0KrRcw_Tekgq5_KhE2sX6j/view', description:'Montessori Teacher Training — Session 3' },
+    { id:'mr4',  courseId:'c1', title:'Montessori 4',  date:'2025-10-07', driveUrl:'https://drive.google.com/file/d/117XDVJBnvSCTgg-SZPqoRZHTKraLRrW4/view', description:'Montessori Teacher Training — Session 4' },
+    { id:'mr5',  courseId:'c1', title:'Montessori 5',  date:'2025-10-07', driveUrl:'https://drive.google.com/file/d/16ISoJskccyoKvK9cPvFU5TfpT2kVnQdK/view', description:'Montessori Teacher Training — Session 5' },
+    { id:'mr6',  courseId:'c1', title:'Montessori 6',  date:'2025-10-18', driveUrl:'https://drive.google.com/file/d/1Bfpr2PpV7QCTfWVx14qdO0dE4Wj7ewgy/view', description:'Montessori Teacher Training — Session 6' },
+    { id:'mr7',  courseId:'c1', title:'Montessori 7',  date:'2025-10-21', driveUrl:'https://drive.google.com/file/d/1hRFvvMHVmgkgqYDPwOnk_4ruH_zUuNm9/view', description:'Montessori Teacher Training — Session 7' },
+    { id:'mr8',  courseId:'c1', title:'Montessori 8',  date:'2025-10-25', driveUrl:'https://drive.google.com/file/d/1XhWDlmY9CpzPdrNOVXFFee841uPnmHI6/view', description:'Montessori Teacher Training — Session 8' },
+    { id:'mr9',  courseId:'c1', title:'Montessori 9',  date:'2025-10-28', driveUrl:'https://drive.google.com/file/d/1bbg4G_skgWycpO6mtoAoR41stf8R5XNB/view', description:'Montessori Teacher Training — Session 9' },
+    { id:'mr10', courseId:'c1', title:'Montessori 10', date:'2025-11-01', driveUrl:'https://drive.google.com/file/d/1_tqt1wBVZf4pmWRopAGAcVhJ84HutKjz/view', description:'Montessori Teacher Training — Session 10' },
+    { id:'mr11', courseId:'c1', title:'Montessori 11', date:'2025-11-08', driveUrl:'https://drive.google.com/file/d/1UeyYhouf6zvkGh0KhZ5OUzsnYHYxqeVz/view', description:'Montessori Teacher Training — Session 11' },
+    { id:'mr12', courseId:'c1', title:'Montessori 12', date:'2025-11-11', driveUrl:'https://drive.google.com/file/d/1kXEWaZcZ63vjG1LUEH-2qbf9wfWaDKIZ/view', description:'Montessori Teacher Training — Session 12' },
+    { id:'mr13', courseId:'c1', title:'Montessori 13', date:'2025-11-18', driveUrl:'https://drive.google.com/file/d/16lZrwSZ1_Re_m0CBViNjp3I9Ub-_Waix/view', description:'Montessori Teacher Training — Session 13' },
+    { id:'mr14', courseId:'c1', title:'Montessori 14', date:'2025-11-22', driveUrl:'https://drive.google.com/file/d/1BpIvZFfvmQbuCMuqiYbVk7zpqqmNHKt1/view', description:'Montessori Teacher Training — Session 14' },
+    { id:'mr15', courseId:'c1', title:'Montessori 15', date:'2025-11-23', driveUrl:'https://drive.google.com/file/d/1E0p_bMm7tbQWekdQQRakRVuIGyO1hsp0/view', description:'Montessori Teacher Training — Session 15' },
+    { id:'mr16', courseId:'c1', title:'Montessori 16', date:'2025-11-25', driveUrl:'https://drive.google.com/file/d/1ttWb3DYdy2SPIDJyqGuIen46BHrALH_K/view', description:'Montessori Teacher Training — Session 16' },
+    { id:'mr17', courseId:'c1', title:'Montessori 17', date:'2025-11-29', driveUrl:'https://drive.google.com/file/d/13ssxO57QskSV_7p2MlpYlquqph11FVnF/view', description:'Montessori Teacher Training — Session 17' },
+    { id:'mr18', courseId:'c1', title:'Montessori 18', date:'2025-12-02', driveUrl:'https://drive.google.com/file/d/1jEJNxmUb8qf5cVx20QMO1cHfhDF06_3-/view', description:'Montessori Teacher Training — Session 18' },
+    { id:'mr19', courseId:'c1', title:'Montessori 19', date:'2025-12-09', driveUrl:'https://drive.google.com/file/d/1twjBDn_cW7VYKq9n8Pz66boN6T3SGams/view', description:'Montessori Teacher Training — Session 19' },
+    { id:'mr20', courseId:'c1', title:'Montessori 20', date:'2025-12-09', driveUrl:'https://drive.google.com/file/d/1Qp5eSyxnCci6bVOQtcn0O5xWKGpehoV-/view', description:'Montessori Teacher Training — Session 20' },
+    { id:'mr21', courseId:'c1', title:'Montessori 21', date:'2025-12-16', driveUrl:'https://drive.google.com/file/d/1psZnxvUgH89WG1dpEzNwg3TndLLEhVqj/view', description:'Montessori Teacher Training — Session 21' },
+    { id:'mr22', courseId:'c1', title:'Montessori 22', date:'2025-12-20', driveUrl:'https://drive.google.com/file/d/11Jt84HlawXfKT8bPGT3CzvFsJJquLird/view', description:'Montessori Teacher Training — Session 22' },
+    { id:'mr23', courseId:'c1', title:'Montessori 23', date:'2025-12-23', driveUrl:'https://drive.google.com/file/d/1kRkXI3SSiyTuDaisY-3VXUqcpybbmJ-o/view', description:'Montessori Teacher Training — Session 23' },
+    { id:'mr24', courseId:'c1', title:'Montessori 24', date:'2025-12-27', driveUrl:'https://drive.google.com/file/d/18FohGWGxeaSF9RQpsET12IRUzsyLAuiT/view', description:'Montessori Teacher Training — Session 24' },
+    { id:'mr25', courseId:'c1', title:'Montessori 25', date:'2025-12-30', driveUrl:'https://drive.google.com/file/d/1f6xWges40ZVIyKlRkmpScMkvDeGPLSOl/view', description:'Montessori Teacher Training — Session 25' },
+    { id:'mr26', courseId:'c1', title:'Montessori 26', date:'2025-12-30', driveUrl:'https://drive.google.com/file/d/1eAxaU0VJG62WA_YU8vD47M6bUoQMhtvs/view', description:'Montessori Teacher Training — Session 26' },
+    { id:'mr27', courseId:'c1', title:'Montessori 27', date:'2026-01-06', driveUrl:'https://drive.google.com/file/d/1dHkJflmfe84RDqhfRIYLc8ikzLVU17GZ/view', description:'Montessori Teacher Training — Session 27' },
+  ];
+
+  // Merge: keep any manually added recordings, then add seeded ones that aren't already there
+  const existingIds = existing.map(r => r.id);
+  const merged = [...existing, ...seed.filter(r => !existingIds.includes(r.id))];
+  localStorage.setItem('lms_recordings', JSON.stringify(merged));
+  console.log('✅ Seeded 27 Montessori class recordings');
+})();
