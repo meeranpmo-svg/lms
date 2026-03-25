@@ -58,7 +58,13 @@ async function sbSyncToLocal(userId, role) {
     dbSet(DB.USERS, allUsers);
     if (enr) dbSet(DB.ENROLLMENTS, enr.map(_enrToLocal));
     if (fees) dbSet(DB.PAYMENTS,   fees.map(_feeToLocal));
-    if (exp)  dbSet(DB.EXPENSES,   exp.map(_expToLocal));
+    // Merge remote expenses with local ones — never wipe local-only entries
+    if (exp && exp.length > 0) {
+      const remoteExp  = exp.map(_expToLocal);
+      const remoteIds  = new Set(remoteExp.map(e => e.id));
+      const localOnly  = dbGet(DB.EXPENSES).filter(e => !remoteIds.has(e.id));
+      dbSet(DB.EXPENSES, [...remoteExp, ...localOnly]);
+    }
   }
 
   if (role === 'teacher') {
@@ -113,7 +119,7 @@ function _feeToLocal(f) {
   };
 }
 function _expToLocal(e) {
-  return { id: e.id, category: e.category, amount: e.amount, description: e.description, date: e.date, createdAt: e.created_at };
+  return { id: e.id, category: e.category, amount: e.amount, description: e.description, paidTo: e.paid_to || '', date: e.date, createdAt: e.created_at };
 }
 
 /* ── Write-through: called fire-and-forget from data.js ─── */
@@ -156,6 +162,7 @@ function sbPushExpense(e) {
   _sb.from('expenses').upsert({
     id: e.id, category: e.category, amount: e.amount,
     description: e.description || null,
+    paid_to: e.paidTo || null,
     date: e.date || new Date().toISOString().split('T')[0]
   }, { onConflict: 'id' }).then(null, console.error);
 }
