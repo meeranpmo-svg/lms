@@ -56,15 +56,16 @@ async function sbSyncToLocal(userId, role) {
       ...(teachers || []).map(_userToLocal)
     ];
     dbSet(DB.USERS, allUsers);
-    if (enr) dbSet(DB.ENROLLMENTS, enr.map(_enrToLocal));
-    if (fees) dbSet(DB.PAYMENTS,   fees.map(_feeToLocal));
-    // Merge remote expenses with local ones — never wipe local-only entries
-    if (exp && exp.length > 0) {
-      const remoteExp  = exp.map(_expToLocal);
-      const remoteIds  = new Set(remoteExp.map(e => e.id));
-      const localOnly  = dbGet(DB.EXPENSES).filter(e => !remoteIds.has(e.id));
-      dbSet(DB.EXPENSES, [...remoteExp, ...localOnly]);
+    // Safe merge helper — never replace local data with empty remote result
+    function safeMerge(remote, localKey) {
+      if (!remote || remote.length === 0) return;
+      const remoteIds = new Set(remote.map(r => r.id));
+      const localOnly = dbGet(localKey).filter(r => !remoteIds.has(r.id));
+      dbSet(localKey, [...remote, ...localOnly]);
     }
+    safeMerge(enr  ? enr.map(_enrToLocal)  : [], DB.ENROLLMENTS);
+    safeMerge(fees ? fees.map(_feeToLocal) : [], DB.PAYMENTS);
+    safeMerge(exp  ? exp.map(_expToLocal)  : [], DB.EXPENSES);
   }
 
   if (role === 'teacher') {
