@@ -232,10 +232,12 @@ async function doRegister() {
 
     // Also push enrollment to Supabase
     if (enrollment) {
-      await _sb.from('enrollments').insert({
-        id: enrollment.id, student_id: userId, course_id: courseId,
-        progress: 0, status: 'active', fee_status: 'pending'
-      }).catch(console.warn);
+      try {
+        await _sb.from('enrollments').insert({
+          id: enrollment.id, student_id: userId, course_id: courseId,
+          progress: 0, status: 'active', fee_status: 'pending'
+        });
+      } catch(e) { console.warn('Enrollment sync failed:', e); }
     }
 
     // Set session
