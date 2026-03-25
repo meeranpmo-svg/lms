@@ -24,7 +24,32 @@
           <h1>🎬 Manage Class Recordings</h1>
           <p>Add Google Drive recordings for student access</p>
         </div>
-        <button class="btn btn-primary" onclick="openAddModal()">+ Add Recording</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-outline" id="sync-btn" onclick="syncFromDrive()" title="Fetch new recordings from Google Drive folder">🔄 Sync from Drive</button>
+          <button class="btn btn-primary" onclick="openAddModal()">+ Add Recording</button>
+        </div>
+      </div>
+
+      <!-- Drive Sync Status -->
+      <div id="drive-sync-bar" style="display:none;" class="card mb-4" style="border-left:4px solid #16a34a;background:#f0fdf4;">
+        <div class="card-body" style="padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span id="drive-sync-msg" class="text-sm"></span>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('drive-sync-bar').style.display='none'">✕</button>
+        </div>
+      </div>
+
+      <!-- Drive Connect Card (shown when not connected) -->
+      <div id="drive-connect-card" class="card mb-4" style="border-left:4px solid #3730a3;background:#f5f3ff;display:none;">
+        <div class="card-body" style="padding:14px 18px;">
+          <div class="font-semibold text-sm mb-2">🔗 Connect Google Drive for Auto-Sync</div>
+          <p class="text-sm text-muted mb-3">Paste your Google Cloud OAuth2 Client ID below to enable automatic sync from the Meet Recordings folder.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <input type="text" id="client-id-input" class="form-control" style="max-width:420px;font-size:0.82rem;" placeholder="xxxxxxx.apps.googleusercontent.com">
+            <button class="btn btn-primary btn-sm" onclick="saveClientId()">Save & Connect</button>
+            <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="btn btn-ghost btn-sm">📋 Get Client ID</a>
+          </div>
+          <p class="text-xs text-muted mt-2">In Google Cloud Console → Create OAuth2 Client ID → Web Application → Add your site URL to "Authorized JavaScript Origins".</p>
+        </div>
       </div>
 
       <!-- Stats -->
@@ -294,6 +319,145 @@ function clearFilters() {
   document.getElementById('filter-course').value = '';
   renderList();
 }
+
+/* =====================================================================
+   GOOGLE DRIVE AUTO-SYNC
+   ===================================================================== */
+const DRIVE_FOLDER_ID = '1M35pH2znFX7gSUoCpm25z8GuLe0vaM7c';
+const DRIVE_SCOPES    = 'https://www.googleapis.com/auth/drive.readonly';
+
+function getDriveClientId() { return localStorage.getItem('lms_drive_client_id') || ''; }
+
+function saveClientId() {
+  const v = document.getElementById('client-id-input').value.trim();
+  if (!v) { showToast('Please enter a Client ID', 'error'); return; }
+  localStorage.setItem('lms_drive_client_id', v);
+  document.getElementById('drive-connect-card').style.display = 'none';
+  showToast('Client ID saved — clicking Sync now', 'success');
+  syncFromDrive();
+}
+
+function showSyncBar(msg, color) {
+  const bar = document.getElementById('drive-sync-bar');
+  bar.style.display = '';
+  bar.style.borderLeftColor = color || '#16a34a';
+  bar.style.background = color === '#dc2626' ? '#fef2f2' : '#f0fdf4';
+  document.getElementById('drive-sync-msg').textContent = msg;
+}
+
+function syncFromDrive() {
+  const clientId = getDriveClientId();
+  if (!clientId) {
+    document.getElementById('drive-connect-card').style.display = '';
+    const saved = localStorage.getItem('lms_drive_client_id');
+    if (saved) document.getElementById('client-id-input').value = saved;
+    return;
+  }
+  showSyncBar('🔄 Connecting to Google Drive…');
+  const btn = document.getElementById('sync-btn');
+  if (btn) btn.disabled = true;
+
+  // Load Google Identity Services if not already loaded
+  if (!window.google || !window.google.accounts) {
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.onload = () => _doOAuthSync(clientId);
+    document.head.appendChild(s);
+  } else {
+    _doOAuthSync(clientId);
+  }
+}
+
+function _doOAuthSync(clientId) {
+  const tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: DRIVE_SCOPES,
+    callback: async (tokenResponse) => {
+      const btn = document.getElementById('sync-btn');
+      if (btn) btn.disabled = false;
+      if (tokenResponse.error) {
+        showSyncBar('❌ Auth failed: ' + tokenResponse.error, '#dc2626');
+        return;
+      }
+      showSyncBar('🔄 Fetching recordings from Drive folder…');
+      await _fetchDriveFiles(tokenResponse.access_token);
+    },
+  });
+  tokenClient.requestAccessToken({ prompt: '' });
+}
+
+async function _fetchDriveFiles(token) {
+  try {
+    // List all video files in the folder
+    let allFiles = [];
+    let pageToken = '';
+    do {
+      const q    = encodeURIComponent(`'${DRIVE_FOLDER_ID}' in parents and mimeType contains 'video/' and trashed=false`);
+      const url  = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id,name,createdTime,mimeType)&orderBy=createdTime&pageSize=100${pageToken ? '&pageToken='+pageToken : ''}`;
+      const res  = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      allFiles = allFiles.concat(data.files || []);
+      pageToken = data.nextPageToken || '';
+    } while (pageToken);
+
+    // Sort by createdTime
+    allFiles.sort((a, b) => new Date(a.createdTime) - new Date(b.createdTime));
+
+    const existing = getRecordings();
+    const existingDriveIds = new Set(existing.map(r => {
+      const m = (r.driveUrl || '').match(/\/d\/([a-zA-Z0-9_-]+)/);
+      return m ? m[1] : null;
+    }).filter(Boolean));
+
+    const newFiles = allFiles.filter(f => !existingDriveIds.has(f.id));
+
+    if (!newFiles.length) {
+      showSyncBar('✅ Already up to date — no new recordings found.', '#3730a3');
+      return;
+    }
+
+    // Auto-number new recordings continuing from existing count
+    const courses  = dbGet(DB.COURSES);
+    const c1       = courses.find(c => c.id === 'c1') || courses[0];
+    let nextNum = allFiles.findIndex(f => f.id === newFiles[0].id) + 1;
+
+    const updated = [...existing];
+    newFiles.forEach((f, i) => {
+      const num   = nextNum + i;
+      const dateStr = f.createdTime ? f.createdTime.split('T')[0] : '';
+      updated.push({
+        id:          'mr_' + f.id.slice(0, 8),
+        courseId:    c1 ? c1.id : 'c1',
+        title:       'Montessori ' + num,
+        date:        dateStr,
+        driveUrl:    'https://drive.google.com/file/d/' + f.id + '/view',
+        description: 'Montessori Teacher Training — Session ' + num
+      });
+    });
+
+    saveRecordings(updated);
+    renderStats();
+    renderList();
+    showSyncBar(`✅ Synced! Added ${newFiles.length} new recording${newFiles.length > 1 ? 's' : ''} (Montessori ${nextNum}–${nextNum + newFiles.length - 1}).`);
+    showToast(`Added ${newFiles.length} new recording${newFiles.length > 1 ? 's' : ''}!`, 'success');
+
+  } catch (err) {
+    showSyncBar('❌ Sync failed: ' + err.message, '#dc2626');
+    console.error('Drive sync error:', err);
+  }
+}
+
+// Auto-sync on page load if client ID is set and token cached
+(function autoSync() {
+  if (!getDriveClientId()) return;
+  // Only auto-sync once every 30 minutes
+  const last = parseInt(localStorage.getItem('lms_drive_last_sync') || '0');
+  if (Date.now() - last < 30 * 60 * 1000) return;
+  localStorage.setItem('lms_drive_last_sync', Date.now());
+  // Slight delay so page renders first
+  setTimeout(syncFromDrive, 1500);
+})();
 </script>
 </body>
 </html>
