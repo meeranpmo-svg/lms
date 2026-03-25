@@ -136,17 +136,32 @@ function renderScheduleBanner() {
       time: '7:00 – 8:00 PM IST',
       calLink: null,
       meetLink: 'https://meet.google.com/ign-rmrk-egs'
+    },
+    {
+      course: 'Advance Montessori Diploma',
+      icon: '🏫',
+      color: '#b45309',
+      days: [2, 6], // Tuesday=2, Saturday=6
+      dayName: 'Tuesday & Saturday',
+      time: '7:00 – 8:00 PM IST',
+      calLink: null,
+      meetLink: 'https://meet.google.com/btd-uddc-dsi'
     }
   ];
 
   const today = new Date();
   const cards = SCHEDULE.map(s => {
-    // Find next occurrence of the day
-    const diff = (s.day - today.getDay() + 7) % 7 || 7;
+    // Find next occurrence (supports single day or multiple days)
+    const daysArr = s.days || [s.day];
+    let minDiff = 8;
+    daysArr.forEach(d => {
+      const diff = (d - today.getDay() + 7) % 7 || 7;
+      if (diff < minDiff) minDiff = diff;
+    });
     const next = new Date(today);
-    next.setDate(today.getDate() + diff);
-    const isToday = diff === 0;
-    const isTomorrow = diff === 1;
+    next.setDate(today.getDate() + minDiff);
+    const isToday = minDiff === 0;
+    const isTomorrow = minDiff === 1;
     const label = isToday ? '🔴 Today' : isTomorrow ? '🟡 Tomorrow' : `📅 ${next.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short'})}`;
 
     const btnCal = s.calLink
