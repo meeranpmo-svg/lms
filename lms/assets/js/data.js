@@ -199,7 +199,7 @@ function initSeedData() {
       description: 'A comprehensive training program covering the philosophy, principles, and practical implementation of the Montessori method for early childhood education. Become a certified Montessori educator.',
       duration: '6 Months', level: 'Advanced', icon: '🏫', color: '#1a7a7a',
       modules: ['Montessori Philosophy & Principles', 'Prepared Environment', 'Sensorial Materials', 'Language & Literacy', 'Mathematics in Montessori', 'Practical Life Activities'],
-      maxStudents: 25, fee: 15000, createdAt: '2024-01-15T00:00:00Z'
+      maxStudents: 25, fee: 25000, createdAt: '2024-01-15T00:00:00Z'
     },
     {
       id: 'c2', title: 'Spoken English',
@@ -454,6 +454,16 @@ initSeedData();
     const keep = { users: localStorage.getItem('lms_users'), enrollments: localStorage.getItem('lms_enrollments'), payments: localStorage.getItem('lms_payments'), expenses: localStorage.getItem('lms_expenses'), progress: localStorage.getItem('lms_progress'), submissions: localStorage.getItem('lms_submissions') };
     initSeedData();
     Object.entries(keep).forEach(([k, v]) => { if (v) localStorage.setItem('lms_' + k.replace('lms_',''), v); });
+  }
+})();
+
+/* ---- Migration: update Montessori course fee to 25000 ---- */
+(function migrateCourseFees() {
+  const courses = dbGet(DB.COURSES);
+  const c1 = courses.find(c => c.id === 'c1');
+  if (c1 && c1.fee !== 25000) {
+    c1.fee = 25000;
+    localStorage.setItem('lms_courses', JSON.stringify(courses));
   }
 })();
 
