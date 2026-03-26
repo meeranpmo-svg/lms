@@ -185,18 +185,49 @@ async function doRegister() {
   if (!name)     { showAlert('Please enter your full name.'); return; }
   if (!phone)    { showAlert('Please enter your WhatsApp number.'); return; }
   if (!email)    { showAlert('Please enter your email address.'); return; }
-  if (!email.endsWith('@ansha.com')) { showAlert('Please use your Ansha email address (example@ansha.com).'); return; }
   if (!courseId) { showAlert('Please select your course.'); return; }
   if (!pass)     { showAlert('Please create a password.'); return; }
   if (pass.length < 6) { showAlert('Password must be at least 6 characters.'); return; }
   if (pass !== pass2)  { showAlert('Passwords do not match.'); return; }
 
-  // Check duplicate email
-  const existing = findUserByEmail(email);
-  if (existing) { showAlert('An account with this email already exists. Please sign in.'); return; }
+  // Normalise phone for comparison (digits only)
+  const normPhone = phone.replace(/\D/g, '');
+  if (normPhone.length < 7) { showAlert('Please enter a valid mobile number.'); return; }
 
   const btn = document.getElementById('reg-btn');
   btn.disabled = true;
+  btn.textContent = 'Checking details…';
+
+  // Check duplicate phone in localStorage
+  const phoneTaken = dbGet(DB.USERS).some(u => u.phone && u.phone.replace(/\D/g,'') === normPhone);
+  if (phoneTaken) {
+    showAlert('This mobile number is already registered. Please sign in or use a different number.');
+    btn.disabled = false; btn.textContent = 'Create Account & Access LMS'; return;
+  }
+
+  // Check duplicate phone in Supabase
+  try {
+    const { data: sbPhone } = await _sb.from('users').select('id').eq('phone', phone).maybeSingle();
+    if (!sbPhone) {
+      // also try normalised digits in case stored differently
+      const { data: sbPhone2 } = await _sb.from('users').select('id,phone').neq('phone', null);
+      if (sbPhone2 && sbPhone2.some(u => u.phone && u.phone.replace(/\D/g,'') === normPhone)) {
+        showAlert('This mobile number is already registered. Please sign in or use a different number.');
+        btn.disabled = false; btn.textContent = 'Create Account & Access LMS'; return;
+      }
+    } else {
+      showAlert('This mobile number is already registered. Please sign in or use a different number.');
+      btn.disabled = false; btn.textContent = 'Create Account & Access LMS'; return;
+    }
+  } catch(e) { /* Supabase unreachable — local check was enough */ }
+
+  // Check duplicate email
+  const existing = findUserByEmail(email);
+  if (existing) {
+    showAlert('An account with this email already exists. Please sign in.');
+    btn.disabled = false; btn.textContent = 'Create Account & Access LMS'; return;
+  }
+
   btn.textContent = 'Creating account…';
 
   try {
