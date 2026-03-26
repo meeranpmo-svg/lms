@@ -231,7 +231,8 @@ async function doRegister() {
   btn.textContent = 'Creating account…';
 
   try {
-    const userId   = genId();
+    // Use proper UUID so Supabase accepts the id column
+    const userId   = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : genId();
     const username = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase();
 
     const newUser = {
