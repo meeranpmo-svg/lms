@@ -7,7 +7,20 @@ const SUPA_URL = 'https://twzcefikdychhsjwjekf.supabase.co';
 const SUPA_KEY = 'sb_publishable_GijBRmulhuyIp3bigyhMUw_hVmQiB0y';
 const _sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 
-/* ── Login ──────────────────────────────────────────────── */
+/* ── loginAsync: try Supabase first, fall back to local ─── */
+async function loginAsync(credential, password, role) {
+  // 1. Try Supabase
+  try {
+    const r = await sbLogin(credential, password, role);
+    if (r.success) return r;
+  } catch (e) { /* network error — fall through to local */ }
+
+  // 2. Fall back to local localStorage login
+  const localResult = login(credential, password, role);
+  return localResult;
+}
+
+/* ── Supabase Login ─────────────────────────────────────── */
 async function sbLogin(credential, password, role) {
   const isEmail = credential.includes('@');
   let q = _sb.from('users').select('*')
@@ -16,10 +29,15 @@ async function sbLogin(credential, password, role) {
     .eq('is_active', true);
   q = isEmail ? q.eq('email', credential) : q.eq('username', credential);
   const { data, error } = await q.maybeSingle();
-  if (error || !data) return { success: false, message: 'Invalid credentials or role.' };
+  if (error || !data) {
+    // Supabase returned no match — try local as fallback
+    const localResult = login(credential, password, role);
+    return localResult;
+  }
   const user = {
     id: data.id, name: data.name, email: data.email || '',
-    username: data.username, role: data.role, avatar: data.avatar || '👩‍🎓'
+    username: data.username, role: data.role, avatar: data.avatar || '👩‍🎓',
+    isActive: data.is_active
   };
   setSession(user);
   sbSyncToLocal(data.id, role).catch(console.error);
