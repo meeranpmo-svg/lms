@@ -156,10 +156,7 @@
 
     if (result.success) {
       showToast(`Welcome back, ${result.user.name}! 🎉`, 'success');
-      btnText.textContent = 'Loading data…';
-      document.getElementById('login-btn').disabled = true;
-      // Await full sync so data is ready before dashboard renders
-      try { await sbSyncToLocal(result.user.id, selectedRole); } catch(e) {}
+      // Redirect immediately — sync happens in background on dashboard
       redirectAfterLogin(selectedRole);
     } else {
       errEl.textContent = result.message;
