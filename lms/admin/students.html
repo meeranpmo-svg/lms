@@ -54,6 +54,11 @@
           <option value="paid">Paid</option>
           <option value="pending">Pending</option>
         </select>
+        <select class="form-control" id="filter-status" style="width:auto;min-width:130px;">
+          <option value="">All Status</option>
+          <option value="active">✅ Active</option>
+          <option value="inactive">🚫 Inactive</option>
+        </select>
       </div>
 
       <!-- Students Table -->
@@ -67,6 +72,7 @@
                 <th>Enrolled Courses</th>
                 <th>Avg. Progress</th>
                 <th>Fee Status</th>
+                <th>Status</th>
                 <th>Joined</th>
                 <th>Actions</th>
               </tr>
@@ -179,9 +185,12 @@ function renderStudents() {
 
   document.getElementById('student-count').textContent = `${students.length} students enrolled`;
 
+  const statusFilter = document.getElementById('filter-status').value;
   let filtered = students;
   if (courseFilter) filtered = filtered.filter(s => enrollments.some(e => e.studentId === s.id && e.courseId === courseFilter));
   if (feeFilter)    filtered = filtered.filter(s => enrollments.some(e => e.studentId === s.id && e.feeStatus === feeFilter));
+  if (statusFilter === 'active')   filtered = filtered.filter(s => s.isActive !== false);
+  if (statusFilter === 'inactive') filtered = filtered.filter(s => s.isActive === false);
 
   const searchQ = (document.getElementById('search-input').value || '').toLowerCase();
   if (searchQ) filtered = filtered.filter(s => s.name.toLowerCase().includes(searchQ) || s.email.toLowerCase().includes(searchQ));
@@ -206,8 +215,13 @@ function renderStudents() {
       ? Math.round(studentEnrolls.reduce((sum, e) => sum + e.progress, 0) / studentEnrolls.length)
       : 0;
     const hasPending = studentEnrolls.some(e => e.feeStatus === 'pending');
-    const isNew = new Date(s.createdAt) > sevenDaysAgo;
-    return `<tr${isNew ? ' style="background:#f0fdf4;"' : ''}>
+    const isNew      = new Date(s.createdAt) > sevenDaysAgo;
+    const isActive   = s.isActive !== false;
+    const rowStyle   = !isActive ? 'background:#fff7f7;opacity:.85;' : (isNew ? 'background:#f0fdf4;' : '');
+    const toggleBtn  = isActive
+      ? `<button class="btn btn-sm" style="background:#fee2e2;color:#b91c1c;border:none;cursor:pointer;" onclick="toggleStatus('${s.id}','${s.name}',false)">🚫 Deactivate</button>`
+      : `<button class="btn btn-sm" style="background:#dcfce7;color:#15803d;border:none;cursor:pointer;" onclick="toggleStatus('${s.id}','${s.name}',true)">✅ Activate</button>`;
+    return `<tr style="${rowStyle}">
       <td><div class="flex items-center gap-3">
         <div class="avatar">${s.avatar || getInitials(s.name)}</div>
         <div>
@@ -219,22 +233,25 @@ function renderStudents() {
       <td><span class="badge badge-primary">${studentEnrolls.length} course${studentEnrolls.length !== 1 ? 's' : ''}</span></td>
       <td style="min-width:120px;">${progressBar(avgProgress)}</td>
       <td>${statusBadge(hasPending ? 'pending' : 'paid')}</td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px;font-size:0.8rem;font-weight:600;padding:4px 10px;border-radius:20px;${isActive ? 'background:#dcfce7;color:#15803d;' : 'background:#fee2e2;color:#b91c1c;'}">${isActive ? '✅ Active' : '🚫 Inactive'}</span></td>
       <td class="text-sm text-muted">${formatDate(s.createdAt)}</td>
       <td>
-        <div class="flex gap-2">
+        <div class="flex gap-2" style="flex-wrap:wrap;">
           <button class="btn btn-outline btn-sm" onclick='viewStudent("${s.id}")'>View</button>
+          ${toggleBtn}
           <button class="btn btn-danger btn-sm" onclick="removeStudent('${s.id}', '${s.name}')">Remove</button>
         </div>
       </td>
     </tr>`;
   }).join('');
-  document.getElementById('students-table').innerHTML = html || '<tr><td colspan="7" class="text-center text-muted" style="padding:2rem;">No students found</td></tr>';
+  document.getElementById('students-table').innerHTML = html || '<tr><td colspan="8" class="text-center text-muted" style="padding:2rem;">No students found</td></tr>';
 }
 
 function setupSearch() {
   document.getElementById('search-input').addEventListener('input', renderStudents);
   document.getElementById('filter-course').addEventListener('change', renderStudents);
   document.getElementById('filter-fee').addEventListener('change', renderStudents);
+  document.getElementById('filter-status').addEventListener('change', renderStudents);
 }
 
 function addStudent() {
@@ -296,6 +313,28 @@ function viewStudent(id) {
       <span>Member since: <strong>${formatDate(s.createdAt)}</strong></span>
     </div>`;
   openModal('student-detail-modal');
+}
+
+function toggleStatus(id, name, activate) {
+  const action = activate ? 'Activate' : 'Deactivate';
+  const msg    = activate
+    ? `Activate <strong>${name}</strong>? They will be able to log in again.`
+    : `Deactivate <strong>${name}</strong>? They will not be able to log in until reactivated.`;
+
+  showConfirm(msg, () => {
+    // Update localStorage
+    const users = dbGet(DB.USERS);
+    const student = users.find(u => u.id === id);
+    if (!student) return;
+    student.isActive = activate;
+    localStorage.setItem('lms_users', JSON.stringify(users));
+
+    // Sync to Supabase
+    _sb.from('users').update({ is_active: activate }).eq('id', id).then(null, console.warn);
+
+    renderStudents();
+    showToast(`${name} has been ${activate ? 'activated ✅' : 'deactivated 🚫'}`, activate ? 'success' : 'warning');
+  }, action + ' Student');
 }
 
 function removeStudent(id, name) {
