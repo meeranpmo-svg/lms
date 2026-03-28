@@ -259,3 +259,34 @@ async function sbSeedRecordingsToSupabase() {
     console.log('✅ Seeded ' + recs.length + ' recordings to Supabase');
   }
 }
+
+/* ── Assessment Results sync ─────────────────────────────── */
+async function sbPushAssessmentResult(r) {
+  return _sb.from('assessment_results').upsert({
+    id: r.id, student_id: r.studentId, assessment_id: r.assessmentId,
+    score: r.score, remarks: r.remarks || null,
+    recorded_at: r.recordedAt || new Date().toISOString(),
+    recorded_by: r.recordedBy || null
+  }, { onConflict: 'id' });
+}
+
+async function sbDeleteAssessmentResult(id) {
+  return _sb.from('assessment_results').delete().eq('id', id);
+}
+
+async function sbSyncAssessmentResultsToLocal(studentId) {
+  try {
+    let q = _sb.from('assessment_results').select('*');
+    if (studentId) q = q.eq('student_id', studentId);
+    const { data, error } = await q;
+    if (error || !data || !data.length) return false;
+    const results = data.map(r => ({
+      id: r.id, studentId: r.student_id, assessmentId: r.assessment_id,
+      score: r.score, remarks: r.remarks, recordedAt: r.recorded_at, recordedBy: r.recorded_by
+    }));
+    const remoteIds = new Set(results.map(r => r.id));
+    const localOnly = dbGet(DB.ASSESSMENT_RESULTS).filter(r => !remoteIds.has(r.id));
+    dbSet(DB.ASSESSMENT_RESULTS, [...results, ...localOnly]);
+    return true;
+  } catch (e) { return false; }
+}

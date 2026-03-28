@@ -103,7 +103,11 @@
 <script src="../assets/js/utils.js"></script>
 <script>
 const user = initPage('student');
-if (user) { showMyScores(); renderAssessments(); }
+if (user) {
+  sbSyncAssessmentResultsToLocal(user.id)
+    .catch(() => {})
+    .finally(() => { showMyScores(); renderAssessments(); });
+}
 
 function toEmbedUrl(url) {
   if (!url) return '';
