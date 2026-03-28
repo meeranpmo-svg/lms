@@ -85,6 +85,9 @@
         </div>
       </div>
 
+      <!-- Score card (shown if admin has recorded a score) -->
+      <div id="score-card" style="display:none;" class="mb-5"></div>
+
       <div class="form-container">
         <iframe
           src="https://docs.google.com/forms/d/e/1FAIpQLScOQqEo3Zme2MbFJ3JrP3k7GEx1Mp73nyp6SQ70yV91xOHB4A/viewform?embedded=true"
@@ -112,6 +115,49 @@
 <script src="../assets/js/utils.js"></script>
 <script>
 const user = initPage('student');
+if (user) showMyScores();
+
+function gradeLabel(pct) {
+  if (pct >= 80) return 'A';
+  if (pct >= 60) return 'B';
+  if (pct >= 40) return 'C';
+  if (pct > 0)   return 'D';
+  return 'F';
+}
+function gradeColor(g) {
+  return { A:'#16a34a', B:'#2563eb', C:'#d97706', D:'#dc2626', F:'#94a3b8' }[g] || '#94a3b8';
+}
+
+function showMyScores() {
+  const assessments = dbGet(DB.ASSESSMENTS);
+  const myResults = getStudentAssessmentResults(user.id);
+  if (!myResults.length) return;
+
+  const cards = myResults.map(r => {
+    const asmt = dbGetOne(DB.ASSESSMENTS, r.assessmentId);
+    if (!asmt) return '';
+    const pct = Math.round((r.score / (asmt.maxScore || 100)) * 100);
+    const grade = gradeLabel(pct);
+    return `
+    <div class="stat-card" style="flex:1;min-width:200px;">
+      <div class="stat-icon" style="background:${gradeColor(grade)}22;color:${gradeColor(grade)};font-size:1.6rem;font-weight:800;">${grade}</div>
+      <div class="stat-info">
+        <div class="stat-value" style="color:${gradeColor(grade)};">${r.score}/${asmt.maxScore}</div>
+        <div class="stat-label">${asmt.title}</div>
+        <div class="text-xs text-muted mt-1">${pct}% · ${r.remarks || 'No remarks'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('score-card').style.display = 'block';
+  document.getElementById('score-card').innerHTML = `
+    <div class="card">
+      <div class="card-header"><h3>🏅 Your Assessment Scores</h3></div>
+      <div class="card-body">
+        <div class="flex gap-4 flex-wrap">${cards}</div>
+      </div>
+    </div>`;
+}
 </script>
 </body>
 </html>
