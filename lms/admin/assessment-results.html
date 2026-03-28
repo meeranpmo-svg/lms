@@ -134,7 +134,9 @@
 <script src="../assets/js/utils.js"></script>
 <script>
 const user = initPage('admin');
-if (user) renderPage();
+if (user) {
+  sbSyncAssessmentResultsToLocal().catch(() => {}).finally(renderPage);
+}
 
 function renderPage() {
   // Populate course dropdown in create modal
@@ -308,6 +310,7 @@ function saveScore() {
     recordedBy: user.id
   };
   dbSave(DB.ASSESSMENT_RESULTS, result);
+  sbPushAssessmentResult(result).catch(() => {});
   closeModal('enter-score-modal');
   renderResults();
   const s = dbGetOne(DB.USERS, studentId);
@@ -317,6 +320,7 @@ function saveScore() {
 function deleteScore(resultId) {
   showConfirm('Delete this score?', () => {
     dbDelete(DB.ASSESSMENT_RESULTS, resultId);
+    sbDeleteAssessmentResult(resultId).catch(() => {});
     renderResults();
     showToast('Score deleted', 'warning');
   });
