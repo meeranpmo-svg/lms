@@ -639,12 +639,12 @@ function getAssessmentResults(assessmentId) {
   return dbGet(DB.ASSESSMENT_RESULTS).filter(r => r.assessmentId === assessmentId);
 }
 
-/* ---- Seed default assessment ---- */
+/* ---- Seed default assessments ---- */
 (function initAssessmentSeed() {
-  if (localStorage.getItem('lms_assessments_seeded')) return;
-  const assessments = dbGet(DB.ASSESSMENTS);
-  if (!assessments.find(a => a.id === 'asmt1')) {
-    dbSave(DB.ASSESSMENTS, {
+  // v2 key so existing users also get Skinner Assessment
+  if (localStorage.getItem('lms_assessments_seeded_v2')) return;
+  const seed = [
+    {
       id: 'asmt1',
       title: 'Montessori Diploma Assessment',
       courseId: 'c1',
@@ -652,7 +652,18 @@ function getAssessmentResults(assessmentId) {
       maxScore: 100,
       createdAt: new Date().toISOString(),
       description: 'Advance Montessori Diploma — Knowledge Assessment'
-    });
-  }
-  localStorage.setItem('lms_assessments_seeded', 'true');
+    },
+    {
+      id: 'asmt2',
+      title: 'Skinner Assessment',
+      courseId: 'c1',
+      formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScM2iud9Q7De4qyA_wOrjRs9xFCrKBeKPDAU2bRr8FO7g03Mw/viewform?usp=header',
+      maxScore: 100,
+      createdAt: new Date().toISOString(),
+      description: 'Skinner Behavioural Theory — Assessment'
+    }
+  ];
+  const existingIds = dbGet(DB.ASSESSMENTS).map(a => a.id);
+  seed.filter(a => !existingIds.includes(a.id)).forEach(a => dbSave(DB.ASSESSMENTS, a));
+  localStorage.setItem('lms_assessments_seeded_v2', 'true');
 })();
