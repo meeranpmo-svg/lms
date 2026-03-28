@@ -768,6 +768,105 @@ tbody tr:hover td { background: var(--gray-50); }
 .schedule-join-btn:hover { background: #059669; transform: translateY(-1px); }
 
 /* =========================================================
+   FILE UPLOAD
+   ========================================================= */
+.file-upload-area {
+  border: 2px dashed var(--gray-300);
+  border-radius: var(--radius);
+  padding: var(--space-6);
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  background: var(--gray-50);
+}
+.file-upload-area:hover, .file-upload-area.drag-over {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.file-upload-area.drag-over { transform: scale(1.01); }
+
+/* =========================================================
+   GRADE BOOK
+   ========================================================= */
+.grade-cell {
+  text-align: center;
+  min-width: 72px;
+}
+.grade-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 700;
+  min-width: 52px;
+}
+.grade-pill.A { background: #dcfce7; color: #15803d; }
+.grade-pill.B { background: #dbeafe; color: #1d4ed8; }
+.grade-pill.C { background: #fef9c3; color: #92400e; }
+.grade-pill.D { background: #fee2e2; color: #b91c1c; }
+.grade-pill.N { background: var(--gray-100); color: var(--gray-500); }
+
+/* =========================================================
+   PRINT / RECEIPT
+   ========================================================= */
+@media print {
+  .sidebar, .top-header, .no-print, .mobile-bottom-nav { display: none !important; }
+  .main-content { margin: 0 !important; padding: 0 !important; }
+  .page-content { padding: 0 !important; }
+  body { background: white !important; }
+  .receipt-container { max-width: 100% !important; box-shadow: none !important; }
+}
+.receipt-container {
+  max-width: 680px;
+  margin: 0 auto;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+}
+.receipt-header {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  padding: var(--space-6) var(--space-8);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.receipt-body { padding: var(--space-8); }
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 0.9rem;
+}
+.receipt-row:last-child { border-bottom: none; }
+.receipt-row .label { color: var(--gray-500); }
+.receipt-row .value { font-weight: 600; color: var(--gray-800); }
+.receipt-total {
+  background: var(--primary-light);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-6);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-4);
+  border: 2px solid var(--primary);
+}
+.receipt-total .total-label { font-weight: 700; color: var(--primary); font-size: 1rem; }
+.receipt-total .total-value { font-size: 1.4rem; font-weight: 800; color: var(--primary); }
+.receipt-stamp {
+  text-align: center;
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 2px dashed var(--gray-300);
+  color: var(--gray-400);
+  font-size: 0.8rem;
+}
+
+/* =========================================================
    RESPONSIVE — NEW COMPONENTS
    ========================================================= */
 @media (max-width: 768px) {

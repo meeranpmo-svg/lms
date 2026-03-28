@@ -39,13 +39,23 @@
     <div class="modal-body">
       <div id="submit-instructions" class="card mb-4" style="padding:var(--space-4);background:var(--gray-50);font-size:0.9rem;"></div>
       <div class="form-group">
-        <label class="form-label">Your Answer / Submission *</label>
-        <textarea id="submit-answer" class="form-control" rows="8" placeholder="Write your answer here…"></textarea>
+        <label class="form-label">Your Answer / Submission</label>
+        <textarea id="submit-answer" class="form-control" rows="5" placeholder="Write your answer here… (optional if uploading files)"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Attach Files <span class="text-muted text-xs">(Photos, PDFs — max 5MB each)</span></label>
+        <div class="file-upload-area" id="file-upload-area" onclick="document.getElementById('file-input').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleFileDrop(event)">
+          <i class="fa-solid fa-cloud-arrow-up" style="font-size:2rem;color:var(--primary);margin-bottom:8px;display:block;"></i>
+          <p class="text-sm font-medium">Tap to upload or drag & drop</p>
+          <p class="text-xs text-muted">Images (JPG, PNG) or PDF files</p>
+        </div>
+        <input type="file" id="file-input" accept="image/*,.pdf" multiple style="display:none" onchange="handleFileSelect(this.files)">
+        <div id="file-preview-list" class="mt-3" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('submit-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="doSubmit()">Submit Assignment</button>
+      <button class="btn btn-primary" onclick="doSubmit()"><i class="fa-solid fa-paper-plane"></i> Submit</button>
     </div>
   </div>
 </div>
@@ -58,6 +68,8 @@
 <script>
 const user = initPage('student');
 let currentAssignmentId = null;
+let pendingFiles = []; // {name, type, size, data (base64)}
+
 if (user) renderPage();
 
 function renderPage() { renderPending(); renderSubmitted(); }
@@ -132,22 +144,63 @@ function renderSubmitted() {
 
 function openSubmitModal(assignmentId) {
   currentAssignmentId = assignmentId;
+  pendingFiles = [];
   const a = dbGetOne(DB.ASSIGNMENTS, assignmentId);
   if (!a) return;
   document.getElementById('submit-modal-title').textContent = a.title;
   document.getElementById('submit-instructions').innerHTML = `<strong>Instructions:</strong><br>${a.description}`;
   document.getElementById('submit-answer').value = '';
+  document.getElementById('file-preview-list').innerHTML = '';
   openModal('submit-modal');
+}
+
+function handleFileSelect(files) {
+  [...files].forEach(file => {
+    if (file.size > 5 * 1024 * 1024) { showToast(`${file.name} is too large (max 5MB)`, 'error'); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      pendingFiles.push({ name: file.name, type: file.type, size: file.size, data: e.target.result });
+      renderFilePreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function handleFileDrop(e) {
+  e.preventDefault();
+  document.getElementById('file-upload-area').classList.remove('drag-over');
+  handleFileSelect(e.dataTransfer.files);
+}
+
+function renderFilePreviews() {
+  document.getElementById('file-preview-list').innerHTML = pendingFiles.map((f, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius);font-size:0.875rem;">
+      <span style="font-size:1.3rem;">${f.type.startsWith('image/') ? '🖼️' : '📄'}</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span>
+      <span class="text-muted text-xs">${(f.size/1024).toFixed(0)}KB</span>
+      <button onclick="removeFile(${i})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:1rem;">✕</button>
+    </div>`).join('');
+}
+
+function removeFile(i) {
+  pendingFiles.splice(i, 1);
+  renderFilePreviews();
 }
 
 function doSubmit() {
   const answer = document.getElementById('submit-answer').value.trim();
-  if (!answer) { showToast('Please write your answer before submitting', 'error'); return; }
-  submitAssignment(user.id, currentAssignmentId, answer);
+  if (!answer && !pendingFiles.length) { showToast('Please write an answer or attach a file', 'error'); return; }
+  const sub = submitAssignment(user.id, currentAssignmentId, answer);
+  // Attach files to submission
+  if (pendingFiles.length && sub) {
+    sub.files = pendingFiles.map(f => ({ name: f.name, type: f.type, data: f.data }));
+    dbSave(DB.SUBMISSIONS, sub);
+  }
   closeModal('submit-modal');
+  pendingFiles = [];
   renderPending();
   renderSubmitted();
-  showToast('Assignment submitted successfully! ✓', 'success');
+  showToast('Assignment submitted! ✓', 'success');
 }
 </script>
 </body>
