@@ -17,11 +17,13 @@ const DB = {
   ADMISSIONS:    'lms_admissions',
   PAYMENTS:      'lms_payments',
   EXPENSES:      'lms_expenses',
-  NOTIFICATIONS: 'lms_notifications',
-  ATTENDANCE:    'lms_attendance',
-  RATINGS:       'lms_ratings',
-  DISCUSSIONS:   'lms_discussions',
-  SCHEDULE:      'lms_schedule',
+  NOTIFICATIONS:       'lms_notifications',
+  ATTENDANCE:          'lms_attendance',
+  RATINGS:             'lms_ratings',
+  DISCUSSIONS:         'lms_discussions',
+  SCHEDULE:            'lms_schedule',
+  ASSESSMENTS:         'lms_assessments',
+  ASSESSMENT_RESULTS:  'lms_assessment_results',
 };
 
 /* ---- Generic CRUD ---- */
@@ -686,4 +688,34 @@ initScheduleSeed();
   const merged = [...existing, ...seed.filter(r => !existingIds.includes(r.id))];
   localStorage.setItem('lms_recordings', JSON.stringify(merged));
   console.log('✅ Seeded 27 Montessori class recordings');
+})();
+
+
+/* ---- Assessment helpers ---- */
+function getAssessmentResult(studentId, assessmentId) {
+  return dbGet(DB.ASSESSMENT_RESULTS).find(r => r.studentId === studentId && r.assessmentId === assessmentId) || null;
+}
+function getStudentAssessmentResults(studentId) {
+  return dbGet(DB.ASSESSMENT_RESULTS).filter(r => r.studentId === studentId);
+}
+function getAssessmentResults(assessmentId) {
+  return dbGet(DB.ASSESSMENT_RESULTS).filter(r => r.assessmentId === assessmentId);
+}
+
+/* ---- Seed default assessment ---- */
+(function initAssessmentSeed() {
+  if (localStorage.getItem('lms_assessments_seeded')) return;
+  const assessments = dbGet(DB.ASSESSMENTS);
+  if (!assessments.find(a => a.id === 'asmt1')) {
+    dbSave(DB.ASSESSMENTS, {
+      id: 'asmt1',
+      title: 'Montessori Diploma Assessment',
+      courseId: 'c1',
+      formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScOQqEo3Zme2MbFJ3JrP3k7GEx1Mp73nyp6SQ70yV91xOHB4A/viewform?usp=header',
+      maxScore: 100,
+      createdAt: new Date().toISOString(),
+      description: 'Advance Montessori Diploma — Knowledge Assessment'
+    });
+  }
+  localStorage.setItem('lms_assessments_seeded', 'true');
 })();
