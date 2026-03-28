@@ -3,36 +3,48 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Montessori Assessment — Ansha Montessori LMS</title>
+  <title>Assessments — Ansha Montessori LMS</title>
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/dashboard.css">
   <link rel="stylesheet" href="../assets/css/components.css">
   <style>
-    .assessment-hero {
+    .asmt-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: var(--space-5);
+    }
+    .asmt-tab-btn {
+      padding: 10px 22px;
+      border-radius: 999px;
+      border: 2px solid var(--gray-200);
+      background: #fff;
+      font-weight: 600;
+      font-size: .92rem;
+      cursor: pointer;
+      transition: all .2s;
+      color: var(--gray-600);
+    }
+    .asmt-tab-btn.active {
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      color: #fff;
+      border-color: transparent;
+    }
+    .asmt-panel { display: none; }
+    .asmt-panel.active { display: block; }
+    .asmt-hero {
       background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
       border-radius: var(--radius-lg);
-      padding: var(--space-6) var(--space-8);
+      padding: var(--space-5) var(--space-6);
       color: #fff;
-      margin-bottom: var(--space-6);
+      margin-bottom: var(--space-5);
       display: flex;
       align-items: center;
-      gap: var(--space-5);
+      gap: var(--space-4);
     }
-    .assessment-hero-icon {
-      font-size: 3.5rem;
-      flex-shrink: 0;
-    }
-    .assessment-hero h2 {
-      margin: 0 0 6px;
-      font-size: 1.5rem;
-      font-weight: 700;
-    }
-    .assessment-hero p {
-      margin: 0;
-      opacity: .88;
-      font-size: .95rem;
-      line-height: 1.5;
-    }
+    .asmt-hero-icon { font-size: 2.8rem; flex-shrink: 0; }
+    .asmt-hero h2 { margin: 0 0 4px; font-size: 1.25rem; font-weight: 700; }
+    .asmt-hero p  { margin: 0; opacity: .88; font-size: .88rem; line-height: 1.5; }
     .form-container {
       background: #fff;
       border-radius: var(--radius-lg);
@@ -41,28 +53,19 @@
       border: 1px solid var(--gray-200);
     }
     .form-container iframe {
-      display: block;
-      width: 100%;
-      min-height: 800px;
-      border: none;
+      display: block; width: 100%; min-height: 820px; border: none;
     }
     .form-note {
-      padding: var(--space-4) var(--space-5);
+      padding: 12px 20px;
       background: var(--gray-50);
       border-top: 1px solid var(--gray-200);
-      font-size: .83rem;
+      font-size: .82rem;
       color: var(--gray-500);
       text-align: center;
     }
     @media (max-width: 600px) {
-      .assessment-hero {
-        flex-direction: column;
-        text-align: center;
-        padding: var(--space-5);
-      }
-      .form-container iframe {
-        min-height: 900px;
-      }
+      .asmt-hero { flex-direction: column; text-align: center; padding: var(--space-4); }
+      .form-container iframe { min-height: 900px; }
     }
   </style>
 </head>
@@ -72,37 +75,22 @@
   <aside class="sidebar" id="sidebar"></aside>
   <div class="main-content">
     <header class="top-header">
-      <div class="header-left"><span class="page-title">Montessori Assessment</span></div>
+      <div class="header-left"><span class="page-title">Assessments</span></div>
       <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
     </header>
     <main class="page-content">
-
-      <div class="assessment-hero">
-        <div class="assessment-hero-icon">📝</div>
-        <div>
-          <h2>Advance Montessori Diploma — Assessment</h2>
-          <p>Complete this assessment to evaluate your understanding of Montessori principles and teaching methodology. Take your time and answer all questions honestly.</p>
-        </div>
+      <div class="page-header">
+        <div><h1>📝 My Assessments</h1><p>Complete your assessments and track your scores</p></div>
       </div>
 
-      <!-- Score card (shown if admin has recorded a score) -->
+      <!-- Score card -->
       <div id="score-card" style="display:none;" class="mb-5"></div>
 
-      <div class="form-container">
-        <iframe
-          src="https://docs.google.com/forms/d/e/1FAIpQLScOQqEo3Zme2MbFJ3JrP3k7GEx1Mp73nyp6SQ70yV91xOHB4A/viewform?embedded=true"
-          frameborder="0"
-          marginheight="0"
-          marginwidth="0"
-          allowfullscreen
-          loading="lazy"
-          title="Montessori Assessment Form">
-          Loading assessment…
-        </iframe>
-        <div class="form-note">
-          If the form does not load, <a href="https://docs.google.com/forms/d/e/1FAIpQLScOQqEo3Zme2MbFJ3JrP3k7GEx1Mp73nyp6SQ70yV91xOHB4A/viewform?usp=header" target="_blank" rel="noopener" style="color:var(--primary);">open it in a new tab →</a>
-        </div>
-      </div>
+      <!-- Assessment tabs -->
+      <div class="asmt-tabs" id="asmt-tabs"></div>
+
+      <!-- Assessment panels -->
+      <div id="asmt-panels"></div>
 
     </main>
   </div>
@@ -115,7 +103,13 @@
 <script src="../assets/js/utils.js"></script>
 <script>
 const user = initPage('student');
-if (user) showMyScores();
+if (user) { showMyScores(); renderAssessments(); }
+
+function toEmbedUrl(url) {
+  if (!url) return '';
+  // Convert /viewform?... to ?embedded=true
+  return url.replace(/\?.*$/, '') + '?embedded=true';
+}
 
 function gradeLabel(pct) {
   if (pct >= 80) return 'A';
@@ -129,34 +123,80 @@ function gradeColor(g) {
 }
 
 function showMyScores() {
-  const assessments = dbGet(DB.ASSESSMENTS);
   const myResults = getStudentAssessmentResults(user.id);
   if (!myResults.length) return;
-
   const cards = myResults.map(r => {
     const asmt = dbGetOne(DB.ASSESSMENTS, r.assessmentId);
     if (!asmt) return '';
     const pct = Math.round((r.score / (asmt.maxScore || 100)) * 100);
     const grade = gradeLabel(pct);
     return `
-    <div class="stat-card" style="flex:1;min-width:200px;">
-      <div class="stat-icon" style="background:${gradeColor(grade)}22;color:${gradeColor(grade)};font-size:1.6rem;font-weight:800;">${grade}</div>
+    <div class="stat-card" style="flex:1;min-width:180px;">
+      <div class="stat-icon" style="background:${gradeColor(grade)}22;color:${gradeColor(grade)};font-size:1.5rem;font-weight:800;">${grade}</div>
       <div class="stat-info">
         <div class="stat-value" style="color:${gradeColor(grade)};">${r.score}/${asmt.maxScore}</div>
         <div class="stat-label">${asmt.title}</div>
-        <div class="text-xs text-muted mt-1">${pct}% · ${r.remarks || 'No remarks'}</div>
+        <div class="text-xs text-muted mt-1">${pct}%${r.remarks ? ' · ' + r.remarks : ''}</div>
       </div>
     </div>`;
   }).join('');
-
   document.getElementById('score-card').style.display = 'block';
   document.getElementById('score-card').innerHTML = `
     <div class="card">
-      <div class="card-header"><h3>🏅 Your Assessment Scores</h3></div>
-      <div class="card-body">
-        <div class="flex gap-4 flex-wrap">${cards}</div>
+      <div class="card-header"><h3>🏅 Your Scores</h3></div>
+      <div class="card-body"><div class="flex gap-4 flex-wrap">${cards}</div></div>
+    </div>`;
+}
+
+function renderAssessments() {
+  const assessments = dbGet(DB.ASSESSMENTS);
+  if (!assessments.length) {
+    document.getElementById('asmt-panels').innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><p>No assessments available yet</p></div>';
+    return;
+  }
+
+  // Tabs
+  document.getElementById('asmt-tabs').innerHTML = assessments.map((a, i) =>
+    `<button class="asmt-tab-btn ${i === 0 ? 'active' : ''}" onclick="switchAsmt('${a.id}', this)">${a.title}</button>`
+  ).join('');
+
+  // Panels
+  document.getElementById('asmt-panels').innerHTML = assessments.map((a, i) => {
+    const myResult = getAssessmentResult(user.id, a.id);
+    const scoreBadge = myResult
+      ? `<span class="badge badge-success" style="font-size:.85rem;">✓ Score: ${myResult.score}/${a.maxScore}</span>`
+      : '<span class="badge badge-warning" style="font-size:.85rem;">⏳ Not yet graded</span>';
+    return `
+    <div class="asmt-panel ${i === 0 ? 'active' : ''}" id="panel-${a.id}">
+      <div class="asmt-hero">
+        <div class="asmt-hero-icon">📝</div>
+        <div>
+          <h2>${a.title}</h2>
+          <p>${a.description || 'Complete this assessment carefully.'}</p>
+          <div style="margin-top:8px;">${scoreBadge}</div>
+        </div>
+      </div>
+      <div class="form-container">
+        <iframe
+          src="${toEmbedUrl(a.formUrl)}"
+          frameborder="0" marginheight="0" marginwidth="0"
+          allowfullscreen loading="lazy"
+          title="${a.title}">
+          Loading…
+        </iframe>
+        <div class="form-note">
+          If the form does not load, <a href="${a.formUrl}" target="_blank" rel="noopener" style="color:var(--primary);">open it in a new tab →</a>
+        </div>
       </div>
     </div>`;
+  }).join('');
+}
+
+function switchAsmt(id, btn) {
+  document.querySelectorAll('.asmt-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.asmt-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + id).classList.add('active');
 }
 </script>
 </body>
