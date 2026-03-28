@@ -299,6 +299,7 @@ function buildSidebar(user) {
     <a href="schedule.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-video"></i></span> Live Classes</a>
     <a href="recordings.html"    class="nav-item"><span class="nav-icon"><i class="fa-solid fa-circle-play"></i></span> Class Recordings</a>
     <a href="assignments.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-file-lines"></i></span> Assignments</a>
+    <a href="assessment.html"    class="nav-item"><span class="nav-icon"><i class="fa-solid fa-clipboard-question"></i></span> Assessment</a>
     <a href="results.html"       class="nav-item"><span class="nav-icon"><i class="fa-solid fa-trophy"></i></span> My Results</a>
     <a href="gradebook.html"     class="nav-item"><span class="nav-icon"><i class="fa-solid fa-book-bookmark"></i></span> Grade Report</a>
     <a href="leaderboard.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-ranking-star"></i></span> Leaderboard</a>
