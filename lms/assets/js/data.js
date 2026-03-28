@@ -4,19 +4,24 @@
    ========================================================= */
 
 const DB = {
-  USERS:       'lms_users',
-  COURSES:     'lms_courses',
-  LESSONS:     'lms_lessons',
-  QUIZZES:     'lms_quizzes',
-  ASSIGNMENTS: 'lms_assignments',
-  SUBMISSIONS: 'lms_submissions',
-  ENROLLMENTS: 'lms_enrollments',
-  PROGRESS:    'lms_progress',
-  SESSION:     'lms_session',
-  NOTICES:     'lms_notices',
-  ADMISSIONS:  'lms_admissions',
-  PAYMENTS:    'lms_payments',
-  EXPENSES:    'lms_expenses',
+  USERS:         'lms_users',
+  COURSES:       'lms_courses',
+  LESSONS:       'lms_lessons',
+  QUIZZES:       'lms_quizzes',
+  ASSIGNMENTS:   'lms_assignments',
+  SUBMISSIONS:   'lms_submissions',
+  ENROLLMENTS:   'lms_enrollments',
+  PROGRESS:      'lms_progress',
+  SESSION:       'lms_session',
+  NOTICES:       'lms_notices',
+  ADMISSIONS:    'lms_admissions',
+  PAYMENTS:      'lms_payments',
+  EXPENSES:      'lms_expenses',
+  NOTIFICATIONS: 'lms_notifications',
+  ATTENDANCE:    'lms_attendance',
+  RATINGS:       'lms_ratings',
+  DISCUSSIONS:   'lms_discussions',
+  SCHEDULE:      'lms_schedule',
 };
 
 /* ---- Generic CRUD ---- */
@@ -156,6 +161,104 @@ function gradeAssignment(submissionId, marks, feedback) {
   dbSave(DB.SUBMISSIONS, sub);
   if (window.sbPushSubmission) sbPushSubmission(sub);
   return sub;
+}
+
+/* ---- Notification helpers ---- */
+function addNotification(userId, message, type = 'info', link = '') {
+  const notif = { id: genId(), userId, message, type, link, read: false, createdAt: new Date().toISOString() };
+  dbSave(DB.NOTIFICATIONS, notif);
+  return notif;
+}
+function getNotifications(userId) {
+  return dbGet(DB.NOTIFICATIONS).filter(n => n.userId === userId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+function markNotificationRead(id) {
+  const n = dbGetOne(DB.NOTIFICATIONS, id);
+  if (n) { n.read = true; dbSave(DB.NOTIFICATIONS, n); }
+}
+function markAllNotificationsRead(userId) {
+  const list = dbGet(DB.NOTIFICATIONS).map(n => n.userId === userId ? { ...n, read: true } : n);
+  dbSet(DB.NOTIFICATIONS, list);
+}
+function getUnreadCount(userId) {
+  return dbGet(DB.NOTIFICATIONS).filter(n => n.userId === userId && !n.read).length;
+}
+
+/* ---- Attendance helpers ---- */
+function saveAttendance(courseId, date, records) {
+  // records = [{ studentId, status: 'present'|'absent'|'late' }]
+  const id = `att_${courseId}_${date}`;
+  const att = { id, courseId, date, records, markedAt: new Date().toISOString() };
+  dbSave(DB.ATTENDANCE, att);
+  return att;
+}
+function getAttendance(courseId, date) {
+  return dbGetOne(DB.ATTENDANCE, `att_${courseId}_${date}`);
+}
+function getStudentAttendance(studentId, courseId) {
+  return dbGet(DB.ATTENDANCE)
+    .filter(a => a.courseId === courseId)
+    .map(a => ({ date: a.date, record: a.records.find(r => r.studentId === studentId) }))
+    .filter(a => a.record);
+}
+function getCourseAttendanceSummary(courseId) {
+  const all = dbGet(DB.ATTENDANCE).filter(a => a.courseId === courseId);
+  const students = getUsersByRole('student');
+  return students.map(s => {
+    const records = all.flatMap(a => a.records.filter(r => r.studentId === s.id));
+    const present = records.filter(r => r.status === 'present').length;
+    const late    = records.filter(r => r.status === 'late').length;
+    const total   = records.length;
+    return { student: s, present, late, absent: total - present - late, total };
+  }).filter(x => x.total > 0);
+}
+
+/* ---- Rating helpers ---- */
+function saveCourseRating(studentId, courseId, stars, review) {
+  const id = `rate_${studentId}_${courseId}`;
+  const rating = { id, studentId, courseId, stars, review, createdAt: new Date().toISOString() };
+  dbSave(DB.RATINGS, rating);
+  return rating;
+}
+function getCourseRatings(courseId) {
+  return dbGet(DB.RATINGS).filter(r => r.courseId === courseId);
+}
+function getStudentRating(studentId, courseId) {
+  return dbGetOne(DB.RATINGS, `rate_${studentId}_${courseId}`);
+}
+function getCourseAvgRating(courseId) {
+  const ratings = getCourseRatings(courseId);
+  if (!ratings.length) return 0;
+  return (ratings.reduce((s, r) => s + r.stars, 0) / ratings.length).toFixed(1);
+}
+
+/* ---- Discussion helpers ---- */
+function addDiscussionPost(lessonId, userId, text, parentId = null) {
+  const post = { id: genId(), lessonId, userId, text, parentId, likes: 0, createdAt: new Date().toISOString() };
+  dbSave(DB.DISCUSSIONS, post);
+  return post;
+}
+function getLessonDiscussion(lessonId) {
+  return dbGet(DB.DISCUSSIONS).filter(d => d.lessonId === lessonId).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+}
+function likeDiscussionPost(postId) {
+  const post = dbGetOne(DB.DISCUSSIONS, postId);
+  if (post) { post.likes = (post.likes || 0) + 1; dbSave(DB.DISCUSSIONS, post); }
+}
+
+/* ---- Schedule helpers ---- */
+function saveScheduleSession(session) {
+  if (!session.id) session.id = genId();
+  dbSave(DB.SCHEDULE, session);
+  return session;
+}
+function getScheduleSessions(courseId) {
+  return courseId
+    ? dbGet(DB.SCHEDULE).filter(s => s.courseId === courseId)
+    : dbGet(DB.SCHEDULE);
+}
+function deleteScheduleSession(id) {
+  dbDelete(DB.SCHEDULE, id);
 }
 
 /* =============================================

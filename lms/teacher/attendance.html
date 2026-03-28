@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Attendance</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div><h1>Mark Attendance</h1><p>Take attendance for your classes</p></div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <div class="flex gap-4 flex-wrap items-center">
+            <div class="form-group" style="margin:0;flex:1;min-width:180px;">
+              <label class="form-label">Course</label>
+              <select id="att-course" class="form-control" onchange="loadAttendance()"></select>
+            </div>
+            <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+              <label class="form-label">Date</label>
+              <input type="date" id="att-date" class="form-control" onchange="loadAttendance()">
+            </div>
+            <div style="margin-top:22px;">
+              <button class="btn btn-primary" onclick="saveAttendanceData()"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <h2>Students</h2>
+          <div class="flex gap-2">
+            <button class="btn btn-sm btn-success" onclick="markAll('present')">✓ All Present</button>
+            <button class="btn btn-sm btn-danger"  onclick="markAll('absent')">✗ All Absent</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="attendance-grid" id="attendance-grid">
+            <div class="empty-state"><div class="empty-icon">📋</div><p>Select a course and date</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>Attendance Summary</h2></div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Student</th><th>Present</th><th>Late</th><th>Absent</th><th>Total</th><th>%</th></tr></thead>
+            <tbody id="att-summary-table"><tr><td colspan="6" class="text-center text-muted py-4">Select a course above</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/supabase.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('teacher');
+let attendanceState = {};
+
+if (user) {
+  document.getElementById('att-date').value = new Date().toISOString().split('T')[0];
+  populateCourses();
+}
+
+function populateCourses() {
+  const courses = dbGet(DB.COURSES).filter(c => c.teacherId === user.id);
+  const sel = document.getElementById('att-course');
+  sel.innerHTML = '<option value="">— Select Course —</option>' +
+    courses.map(c => `<option value="${c.id}">${c.icon} ${c.title}</option>`).join('');
+}
+
+function loadAttendance() {
+  const courseId = document.getElementById('att-course').value;
+  const date     = document.getElementById('att-date').value;
+  if (!courseId || !date) return;
+  const enrollments = getCourseEnrollments(courseId);
+  const students    = enrollments.map(e => dbGetOne(DB.USERS, e.studentId)).filter(Boolean);
+  const existing    = getAttendance(courseId, date);
+  attendanceState = {};
+  (existing ? existing.records : []).forEach(r => { attendanceState[r.studentId] = r.status; });
+  if (!students.length) {
+    document.getElementById('attendance-grid').innerHTML = '<div class="empty-state"><p>No students enrolled.</p></div>';
+    return;
+  }
+  document.getElementById('attendance-grid').innerHTML = students.map(s => {
+    const status = attendanceState[s.id] || '';
+    return `<div class="attendance-card ${status}" id="att-card-${s.id}" data-student="${s.id}">
+      <div class="flex items-center gap-2">
+        <div class="avatar avatar-sm">${s.avatar || getInitials(s.name)}</div>
+        <span class="student-name">${s.name}</span>
+      </div>
+      <div class="attendance-status-btns">
+        <button class="att-btn present ${status==='present'?'active':''}" onclick="setStatus('${s.id}','present')">✓ Present</button>
+        <button class="att-btn late ${status==='late'?'active':''}" onclick="setStatus('${s.id}','late')">⏱ Late</button>
+        <button class="att-btn absent ${status==='absent'?'active':''}" onclick="setStatus('${s.id}','absent')">✗ Absent</button>
+      </div>
+    </div>`;
+  }).join('');
+  renderSummary(courseId);
+}
+
+function setStatus(sid, status) {
+  attendanceState[sid] = status;
+  const card = document.getElementById(`att-card-${sid}`);
+  if (!card) return;
+  card.className = `attendance-card ${status}`;
+  card.querySelectorAll('.att-btn').forEach(b => b.classList.toggle('active', b.classList.contains(status)));
+}
+function markAll(status) {
+  document.querySelectorAll('[data-student]').forEach(c => setStatus(c.dataset.student, status));
+}
+function saveAttendanceData() {
+  const courseId = document.getElementById('att-course').value;
+  const date     = document.getElementById('att-date').value;
+  if (!courseId || !date) { showToast('Select course and date', 'error'); return; }
+  const records = Object.entries(attendanceState).map(([studentId, status]) => ({ studentId, status }));
+  saveAttendance(courseId, date, records);
+  showToast('Attendance saved!', 'success');
+  renderSummary(courseId);
+}
+function renderSummary(courseId) {
+  const summary = getCourseAttendanceSummary(courseId);
+  if (!summary.length) {
+    document.getElementById('att-summary-table').innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No records yet</td></tr>';
+    return;
+  }
+  document.getElementById('att-summary-table').innerHTML = summary.map(s => {
+    const pct = s.total > 0 ? Math.round(((s.present + s.late) / s.total) * 100) : 0;
+    return `<tr>
+      <td>${s.student.name}</td>
+      <td><span class="badge badge-success">${s.present}</span></td>
+      <td><span class="badge badge-warning">${s.late}</span></td>
+      <td><span class="badge badge-danger">${s.absent}</span></td>
+      <td>${s.total}</td>
+      <td><span class="badge ${pct>=75?'badge-success':pct>=50?'badge-warning':'badge-danger'}">${pct}%</span></td>
+    </tr>`;
+  }).join('');
+}
+function getInitials(name) {
+  return name ? name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() : '?';
+}
+</script>
+</body>
+</html>

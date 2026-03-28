@@ -61,12 +61,23 @@
         </select>
       </div>
 
+      <!-- Bulk Action Bar -->
+      <div class="bulk-action-bar" id="bulk-bar">
+        <span class="selected-count" id="bulk-count">0 selected</span>
+        <button class="btn btn-success btn-sm" onclick="bulkActivate()"><i class="fa-solid fa-check"></i> Activate</button>
+        <button class="btn btn-sm" style="background:#fee2e2;color:#b91c1c;border:none;" onclick="bulkDeactivate()"><i class="fa-solid fa-ban"></i> Deactivate</button>
+        <button class="btn btn-outline btn-sm" onclick="openBulkEnroll()"><i class="fa-solid fa-graduation-cap"></i> Enroll in Course</button>
+        <button class="btn btn-danger btn-sm" onclick="bulkRemove()"><i class="fa-solid fa-trash"></i> Remove</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearSelection()"><i class="fa-solid fa-xmark"></i> Clear</button>
+      </div>
+
       <!-- Students Table -->
       <div class="card">
         <div class="table-wrapper">
           <table>
             <thead>
               <tr>
+                <th style="width:36px;"><input type="checkbox" class="row-check" id="select-all" onchange="toggleSelectAll(this)"></th>
                 <th>Student</th>
                 <th>Contact</th>
                 <th>Enrolled Courses</th>
@@ -79,6 +90,27 @@
             </thead>
             <tbody id="students-table"></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Bulk Enroll Modal -->
+      <div class="modal-backdrop" id="bulk-enroll-modal">
+        <div class="modal" style="max-width:420px;">
+          <div class="modal-header">
+            <h3>Bulk Enroll Students</h3>
+            <button class="modal-close" onclick="closeModal('bulk-enroll-modal')">×</button>
+          </div>
+          <div class="modal-body">
+            <p class="text-sm text-muted mb-4">Enroll <strong id="bulk-enroll-count">0</strong> selected student(s) into a course.</p>
+            <div class="form-group">
+              <label class="form-label">Select Course</label>
+              <select id="bulk-enroll-course" class="form-control"></select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('bulk-enroll-modal')">Cancel</button>
+            <button class="btn btn-primary" onclick="bulkEnrollConfirm()">Enroll Selected</button>
+          </div>
         </div>
       </div>
     </main>
@@ -209,7 +241,7 @@ function renderStudents() {
     banner.style.display = 'none';
   }
 
-  const html = filtered.map(s => {
+  const html = filtered.map((s,_i) => {
     const studentEnrolls = enrollments.filter(e => e.studentId === s.id);
     const avgProgress = studentEnrolls.length
       ? Math.round(studentEnrolls.reduce((sum, e) => sum + e.progress, 0) / studentEnrolls.length)
@@ -221,7 +253,8 @@ function renderStudents() {
     const toggleBtn  = isActive
       ? `<button class="btn btn-sm" style="background:#fee2e2;color:#b91c1c;border:none;cursor:pointer;" onclick="toggleStatus('${s.id}','${s.name}',false)">🚫 Deactivate</button>`
       : `<button class="btn btn-sm" style="background:#dcfce7;color:#15803d;border:none;cursor:pointer;" onclick="toggleStatus('${s.id}','${s.name}',true)">✅ Activate</button>`;
-    return `<tr style="${rowStyle}">
+    return `<tr style="${rowStyle}" data-id="${s.id}">
+      <td><input type="checkbox" class="row-check student-check" value="${s.id}" onchange="updateBulkBar()"></td>
       <td><div class="flex items-center gap-3">
         <div class="avatar">${s.avatar || getInitials(s.name)}</div>
         <div>
@@ -335,6 +368,77 @@ function toggleStatus(id, name, activate) {
     renderStudents();
     showToast(`${name} has been ${activate ? 'activated ✅' : 'deactivated 🚫'}`, activate ? 'success' : 'warning');
   }, action + ' Student');
+}
+
+/* ---- Bulk Actions ---- */
+function getSelectedIds() {
+  return [...document.querySelectorAll('.student-check:checked')].map(c => c.value);
+}
+function updateBulkBar() {
+  const ids = getSelectedIds();
+  const bar = document.getElementById('bulk-bar');
+  bar.classList.toggle('visible', ids.length > 0);
+  document.getElementById('bulk-count').textContent = `${ids.length} selected`;
+  const all = document.querySelectorAll('.student-check');
+  document.getElementById('select-all').checked = ids.length === all.length && all.length > 0;
+  document.getElementById('select-all').indeterminate = ids.length > 0 && ids.length < all.length;
+}
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.student-check').forEach(c => { c.checked = cb.checked; });
+  updateBulkBar();
+}
+function clearSelection() {
+  document.querySelectorAll('.student-check').forEach(c => { c.checked = false; });
+  document.getElementById('select-all').checked = false;
+  updateBulkBar();
+}
+function bulkActivate() {
+  const ids = getSelectedIds();
+  if (!ids.length) return;
+  showConfirm(`Activate ${ids.length} student(s)?`, () => {
+    ids.forEach(id => { const s = dbGetOne(DB.USERS, id); if (s) { s.isActive = true; dbSave(DB.USERS, s); } });
+    renderStudents(); clearSelection(); showToast(`${ids.length} student(s) activated`, 'success');
+  });
+}
+function bulkDeactivate() {
+  const ids = getSelectedIds();
+  if (!ids.length) return;
+  showConfirm(`Deactivate ${ids.length} student(s)?`, () => {
+    ids.forEach(id => { const s = dbGetOne(DB.USERS, id); if (s) { s.isActive = false; dbSave(DB.USERS, s); } });
+    renderStudents(); clearSelection(); showToast(`${ids.length} student(s) deactivated`, 'warning');
+  });
+}
+function openBulkEnroll() {
+  const ids = getSelectedIds();
+  if (!ids.length) return;
+  document.getElementById('bulk-enroll-count').textContent = ids.length;
+  const courses = dbGet(DB.COURSES);
+  document.getElementById('bulk-enroll-course').innerHTML =
+    '<option value="">— Select Course —</option>' +
+    courses.map(c => `<option value="${c.id}">${c.icon} ${c.title}</option>`).join('');
+  openModal('bulk-enroll-modal');
+}
+function bulkEnrollConfirm() {
+  const courseId = document.getElementById('bulk-enroll-course').value;
+  if (!courseId) { showToast('Please select a course', 'error'); return; }
+  const ids = getSelectedIds();
+  let enrolled = 0;
+  ids.forEach(id => { if (enrollStudent(id, courseId)) enrolled++; });
+  closeModal('bulk-enroll-modal');
+  renderStudents(); clearSelection();
+  showToast(`${enrolled} student(s) enrolled (${ids.length - enrolled} already enrolled)`, 'success');
+}
+function bulkRemove() {
+  const ids = getSelectedIds();
+  if (!ids.length) return;
+  showConfirm(`Remove ${ids.length} student(s)? This cannot be undone.`, () => {
+    ids.forEach(id => {
+      dbDelete(DB.USERS, id);
+      dbSet(DB.ENROLLMENTS, dbGet(DB.ENROLLMENTS).filter(e => e.studentId !== id));
+      dbSet(DB.PROGRESS,    dbGet(DB.PROGRESS).filter(p => p.studentId !== id));
+    });
+    renderStudents(); clearSelection(); showToast(`${ids.length} student(s) removed`, 'warning');
+  }, 'Remove Students');
 }
 
 function removeStudent(id, name) {

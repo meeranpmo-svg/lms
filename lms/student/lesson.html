@@ -134,6 +134,24 @@ function renderLesson(lessons, quiz, course) {
           </div>
         </div>`;
         })() : ''}
+
+        <!-- Course Rating -->
+        ${renderRatingWidget(user.id, courseId)}
+
+        <!-- Lesson Discussion -->
+        <div class="card mt-4" id="discussion-card">
+          <div class="card-header">
+            <h3 class="text-sm font-semibold">💬 Discussion & Q&A</h3>
+            <span class="badge badge-primary" id="disc-count-badge"></span>
+          </div>
+          <div class="card-body">
+            <div class="discussion-thread" id="discussion-thread"></div>
+            <div class="flex gap-3 mt-4" style="align-items:flex-end;">
+              <textarea id="disc-input" class="form-control" placeholder="Ask a question or share a thought…" style="resize:none;min-height:72px;flex:1;"></textarea>
+              <button class="btn btn-primary" onclick="postDiscussion()"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Sidebar -->
@@ -350,6 +368,124 @@ function backToLesson() {
   document.getElementById('quiz-area').classList.add('hidden');
   document.getElementById('main-content-area').classList.remove('hidden');
   loadLesson(currentLessonId || params.get('lesson'));
+}
+
+// ---- Course Rating ----
+function renderRatingWidget(studentId, cId) {
+  const existing = getStudentRating(studentId, cId);
+  const allRatings = getCourseRatings(cId);
+  const avg = getCourseAvgRating(cId);
+  const stars = n => [1,2,3,4,5].map(i =>
+    `<span class="star ${i <= n ? 'active' : ''}">${i <= n ? '★' : '☆'}</span>`).join('');
+
+  if (existing) {
+    return `<div class="card mt-4">
+      <div class="card-body">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h3 class="text-sm font-semibold mb-1">Your Rating</h3>
+            <div class="star-rating readonly">${stars(existing.stars)}</div>
+            ${existing.review ? `<p class="text-sm text-muted mt-1">"${existing.review}"</p>` : ''}
+          </div>
+          <div class="text-center">
+            <div style="font-size:2rem;font-weight:800;color:var(--accent);">${avg}</div>
+            <div class="star-rating readonly" style="justify-content:center;">${stars(Math.round(avg))}</div>
+            <div class="text-xs text-muted">${allRatings.length} review${allRatings.length !== 1 ? 's' : ''}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+  return `<div class="card mt-4" id="rating-card">
+    <div class="card-body">
+      <h3 class="text-sm font-semibold mb-3">⭐ Rate This Course</h3>
+      <div class="star-rating" id="star-picker">
+        ${[1,2,3,4,5].map(i => `<span class="star" data-val="${i}" onmouseover="hoverStars(${i})" onmouseout="resetStars()" onclick="pickStar(${i})">☆</span>`).join('')}
+      </div>
+      <textarea id="review-text" class="form-control mt-3" placeholder="Share your experience (optional)…" style="min-height:72px;resize:none;"></textarea>
+      <button class="btn btn-accent mt-3" onclick="submitRating()"><i class="fa-solid fa-star"></i> Submit Review</button>
+      ${allRatings.length ? `<span class="text-sm text-muted ml-4">${avg} avg · ${allRatings.length} review${allRatings.length!==1?'s':''}</span>` : ''}
+    </div>
+  </div>`;
+}
+let _pickedStar = 0;
+function hoverStars(n) {
+  document.querySelectorAll('#star-picker .star').forEach((s,i) => {
+    s.textContent = i < n ? '★' : '☆';
+    s.classList.toggle('active', i < n);
+  });
+}
+function resetStars() {
+  document.querySelectorAll('#star-picker .star').forEach((s,i) => {
+    s.textContent = i < _pickedStar ? '★' : '☆';
+    s.classList.toggle('active', i < _pickedStar);
+  });
+}
+function pickStar(n) {
+  _pickedStar = n;
+  resetStars();
+}
+function submitRating() {
+  if (!_pickedStar) { showToast('Please select a star rating', 'warning'); return; }
+  const review = document.getElementById('review-text')?.value.trim() || '';
+  saveCourseRating(user.id, courseId, _pickedStar, review);
+  showToast('Thank you for your review! ⭐', 'success');
+  const card = document.getElementById('rating-card');
+  if (card) card.outerHTML = renderRatingWidget(user.id, courseId);
+}
+
+// ---- Lesson Discussion ----
+function loadDiscussion(lessonId) {
+  const posts = getLessonDiscussion(lessonId);
+  const badge = document.getElementById('disc-count-badge');
+  if (badge) badge.textContent = posts.length ? `${posts.length} comment${posts.length!==1?'s':''}` : '';
+  const thread = document.getElementById('discussion-thread');
+  if (!thread) return;
+  if (!posts.length) {
+    thread.innerHTML = '<p class="text-sm text-muted">No comments yet. Be the first to ask a question!</p>';
+    return;
+  }
+  thread.innerHTML = posts.map(p => {
+    const author = dbGetOne(DB.USERS, p.userId);
+    return `<div class="discussion-post">
+      <div class="avatar avatar-sm">${author ? (author.avatar || getInitials(author.name)) : '?'}</div>
+      <div class="post-body">
+        <div class="post-header">
+          <span class="author">${author ? author.name : 'Unknown'} <span class="badge badge-${author?.role==='teacher'?'primary':'gray'} text-xs">${author?.role||''}</span></span>
+          <span class="time">${daysAgo(p.createdAt)}</span>
+        </div>
+        <p class="post-text">${p.text}</p>
+        <div class="post-actions">
+          <button onclick="likePost('${p.id}','${lessonId}')"><i class="fa-regular fa-heart"></i> ${p.likes||0}</button>
+          <button onclick="replyTo('${p.id}','${author?.name||''}')"><i class="fa-solid fa-reply"></i> Reply</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function postDiscussion() {
+  const input = document.getElementById('disc-input');
+  const text = input?.value.trim();
+  if (!text) return;
+  addDiscussionPost(currentLessonId, user.id, text);
+  input.value = '';
+  loadDiscussion(currentLessonId);
+  showToast('Comment posted!', 'success');
+}
+function likePost(postId, lessonId) {
+  likeDiscussionPost(postId);
+  loadDiscussion(lessonId);
+}
+function replyTo(postId, name) {
+  const input = document.getElementById('disc-input');
+  if (input) { input.value = `@${name} `; input.focus(); }
+}
+
+// Re-load discussion whenever a lesson is rendered
+const _origRenderLesson = renderLesson;
+function renderLesson(lessons, quiz, course) {
+  _origRenderLesson(lessons, quiz, course);
+  setTimeout(() => { if (currentLessonId) loadDiscussion(currentLessonId); }, 50);
 }
 </script>
 </body>

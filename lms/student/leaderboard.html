@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leaderboard — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Leaderboard</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div><h1>🏆 Leaderboard</h1><p>See how you rank among your peers</p></div>
+      </div>
+
+      <!-- Filter -->
+      <div class="card mb-4">
+        <div class="card-body">
+          <div class="flex gap-4 flex-wrap items-center">
+            <div class="form-group" style="margin:0;flex:1;min-width:200px;">
+              <label class="form-label">Filter by Course</label>
+              <select id="lb-course" class="form-control" onchange="renderLeaderboard()"></select>
+            </div>
+            <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+              <label class="form-label">Rank By</label>
+              <select id="lb-metric" class="form-control" onchange="renderLeaderboard()">
+                <option value="overall">Overall Score</option>
+                <option value="progress">Course Progress</option>
+                <option value="quizzes">Quiz Average</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top 3 Podium -->
+      <div id="podium-area" class="mb-6"></div>
+
+      <!-- Full Rankings -->
+      <div class="card">
+        <div class="card-header"><h2>Full Rankings</h2></div>
+        <div class="card-body">
+          <div class="leaderboard-list" id="leaderboard-list"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/supabase.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('student');
+if (user) { populateCourses(); renderLeaderboard(); }
+
+function populateCourses() {
+  const enrollments = getStudentEnrollments(user.id);
+  const courseIds   = enrollments.map(e => e.courseId);
+  const courses     = courseIds.map(id => dbGetOne(DB.COURSES, id)).filter(Boolean);
+  const sel = document.getElementById('lb-course');
+  sel.innerHTML = '<option value="">All Courses</option>' +
+    courses.map(c => `<option value="${c.id}">${c.icon} ${c.title}</option>`).join('');
+}
+
+function computeScores(courseId) {
+  const metric = document.getElementById('lb-metric').value;
+  const students = getUsersByRole('student');
+  return students.map(s => {
+    let score = 0;
+    if (metric === 'progress') {
+      const enrols = courseId ? [getEnrollment(s.id, courseId)] : getStudentEnrollments(s.id);
+      const vals = enrols.filter(Boolean).map(e => e.progress || 0);
+      score = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
+    } else if (metric === 'quizzes') {
+      const subs = dbGet(DB.SUBMISSIONS).filter(sub => sub.type==='quiz' && sub.studentId===s.id);
+      if (courseId) {
+        const courseQuizIds = dbGet(DB.QUIZZES).filter(q=>q.courseId===courseId).map(q=>q.id);
+        const filtered = subs.filter(sub=>courseQuizIds.includes(sub.quizId));
+        score = filtered.length ? Math.round(filtered.reduce((a,b)=>a+(b.percentage||0),0)/filtered.length) : 0;
+      } else {
+        score = subs.length ? Math.round(subs.reduce((a,b)=>a+(b.percentage||0),0)/subs.length) : 0;
+      }
+    } else {
+      // overall: (avg progress + avg quiz) / 2
+      const enrols = courseId ? [getEnrollment(s.id, courseId)] : getStudentEnrollments(s.id);
+      const progVals = enrols.filter(Boolean).map(e=>e.progress||0);
+      const prog = progVals.length ? progVals.reduce((a,b)=>a+b,0)/progVals.length : 0;
+      const subs = dbGet(DB.SUBMISSIONS).filter(sub=>sub.type==='quiz' && sub.studentId===s.id);
+      const quizAvg = subs.length ? subs.reduce((a,b)=>a+(b.percentage||0),0)/subs.length : 0;
+      score = Math.round((prog + quizAvg) / 2);
+    }
+    return { student: s, score };
+  }).filter(x => x.score > 0).sort((a,b) => b.score - a.score);
+}
+
+function renderLeaderboard() {
+  const courseId = document.getElementById('lb-course').value;
+  const ranked   = computeScores(courseId);
+  const medals   = ['🥇','🥈','🥉'];
+  const topClass = ['top-1','top-2','top-3'];
+  const metric   = document.getElementById('lb-metric').value;
+  const unit     = metric === 'progress' ? '%' : metric === 'quizzes' ? '%' : 'pts';
+
+  // Podium (top 3)
+  if (ranked.length >= 1) {
+    document.getElementById('podium-area').innerHTML = `
+      <div class="grid grid-3" style="gap:var(--space-4);max-width:600px;margin:0 auto;">
+        ${ranked.slice(0,3).map((r,i)=>`
+          <div class="card" style="text-align:center;padding:var(--space-5);border:2px solid ${i===0?'var(--accent)':i===1?'var(--gray-400)':'#f97316'};">
+            <div style="font-size:2.5rem;">${medals[i]}</div>
+            <div class="avatar" style="margin:var(--space-3) auto;background:var(--primary-light);color:var(--primary);">${r.student.avatar||getInitials(r.student.name)}</div>
+            <div class="font-semibold text-sm">${r.student.name}</div>
+            <div style="font-size:1.5rem;font-weight:800;color:var(--primary);margin-top:4px;">${r.score}${unit}</div>
+            ${r.student.id===user.id?'<span class="badge badge-primary mt-2">You</span>':''}
+          </div>`).join('')}
+      </div>`;
+  } else {
+    document.getElementById('podium-area').innerHTML = '';
+  }
+
+  // Full list
+  if (!ranked.length) {
+    document.getElementById('leaderboard-list').innerHTML = '<p class="text-muted text-sm">No data yet. Complete lessons and quizzes to appear on the leaderboard!</p>';
+    return;
+  }
+  document.getElementById('leaderboard-list').innerHTML = ranked.map((r,i) => `
+    <div class="leaderboard-item ${topClass[i]||''}" style="${r.student.id===user.id?'border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-light);':''}">
+      <div class="leaderboard-rank">${i<3?medals[i]:i+1}</div>
+      <div class="avatar avatar-sm">${r.student.avatar||getInitials(r.student.name)}</div>
+      <div style="flex:1;">
+        <div class="font-medium text-sm">${r.student.name}${r.student.id===user.id?' <span class="badge badge-primary" style="font-size:0.65rem;">You</span>':''}</div>
+      </div>
+      <div class="leaderboard-score">${r.score}${unit}</div>
+    </div>`).join('');
+}
+
+function getInitials(name) {
+  return name ? name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() : '?';
+}
+</script>
+</body>
+</html>
