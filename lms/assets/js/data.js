@@ -704,8 +704,8 @@ function getAssessmentResults(assessmentId) {
 
 /* ---- Seed default assessments ---- */
 (function initAssessmentSeed() {
-  // v3 key so existing users get all 5 assessments
-  if (localStorage.getItem('lms_assessments_seeded_v3')) return;
+  // v4 key so existing users get all 6 assessments
+  if (localStorage.getItem('lms_assessments_seeded_v4')) return;
   const seed = [
     {
       id: 'asmt1',
@@ -753,7 +753,17 @@ function getAssessmentResults(assessmentId) {
       description: 'Assessment 5'
     }
   ];
+    {
+      id: 'asmt6',
+      title: 'Assessment 6',
+      courseId: 'c1',
+      formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSeN0mZWagDLHd-4nqOG6i65ZxFEkVwrInZzm587AXej3OUeQQ/viewform?usp=header',
+      maxScore: 100,
+      createdAt: new Date().toISOString(),
+      description: 'Assessment 6'
+    }
+  ];
   const existingIds = dbGet(DB.ASSESSMENTS).map(a => a.id);
   seed.filter(a => !existingIds.includes(a.id)).forEach(a => dbSave(DB.ASSESSMENTS, a));
-  localStorage.setItem('lms_assessments_seeded_v3', 'true');
+  localStorage.setItem('lms_assessments_seeded_v4', 'true');
 })();
