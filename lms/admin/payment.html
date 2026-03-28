@@ -66,6 +66,7 @@
                 <th>Method</th>
                 <th>Date</th>
                 <th>Notes</th>
+                <th class="no-print">Action</th>
               </tr>
             </thead>
             <tbody id="pay-table"></tbody>
@@ -253,6 +254,7 @@ function renderTable() {
       <td class="text-sm">${methodLabels[p.method] || p.method}</td>
       <td class="text-sm text-muted">${formatDate(p.paidAt)}</td>
       <td class="text-sm text-muted">${p.notes || '—'}</td>
+      <td class="no-print"><button class="btn btn-outline btn-sm" onclick="printReceipt('${p.id}')"><i class="fa-solid fa-print"></i> Receipt</button></td>
     </tr>`;
   }).join('');
   document.getElementById('pay-table').innerHTML = rows || '<tr><td colspan="7" class="text-center text-muted" style="padding:2rem;">No payment records found</td></tr>';
@@ -290,6 +292,68 @@ function savePayment() {
 
   renderStats(); renderPendingAlerts(); renderTable();
   showToast(`Payment of ${formatCurrency(amount)} recorded — Receipt ${receiptNo}`, 'success');
+}
+
+function printReceipt(paymentId) {
+  const p = dbGetOne(DB.PAYMENTS, paymentId);
+  if (!p) return;
+  const s = dbGetOne(DB.USERS, p.studentId);
+  const c = dbGetOne(DB.COURSES, p.courseId);
+  if (!s || !c) return;
+  const methodLabels = { cash: 'Cash', bank: 'Bank Transfer', cheque: 'Cheque', online: 'Online' };
+  const win = window.open('', '_blank', 'width=680,height=720');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Fee Receipt — ${p.receiptNo}</title>
+  <style>
+    body{font-family:'Segoe UI',sans-serif;margin:0;padding:30px;color:#1e293b;background:#fff;}
+    .receipt{max-width:600px;margin:0 auto;border:2px solid #0ea5e9;border-radius:12px;overflow:hidden;}
+    .receipt-header{background:linear-gradient(135deg,#0ea5e9,#6366f1);color:#fff;padding:24px 30px;text-align:center;}
+    .receipt-header h1{margin:0 0 4px;font-size:1.5rem;}
+    .receipt-header p{margin:0;opacity:.85;font-size:.9rem;}
+    .receipt-body{padding:24px 30px;}
+    .receipt-no{display:flex;justify-content:space-between;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 16px;margin-bottom:20px;}
+    .receipt-no .label{color:#0369a1;font-weight:700;font-size:.9rem;}
+    .receipt-no .value{font-weight:700;color:#0c4a6e;}
+    table{width:100%;border-collapse:collapse;}
+    td{padding:10px 0;border-bottom:1px solid #e2e8f0;font-size:.92rem;}
+    td:first-child{color:#64748b;width:45%;}
+    td:last-child{font-weight:600;color:#1e293b;}
+    .amount-row td{font-size:1.2rem;color:#16a34a;border-bottom:none;padding-top:16px;}
+    .receipt-footer{background:#f8fafc;padding:16px 30px;text-align:center;font-size:.8rem;color:#94a3b8;border-top:1px solid #e2e8f0;}
+    .stamp{display:inline-block;border:3px solid #16a34a;border-radius:8px;padding:6px 20px;color:#16a34a;font-weight:800;font-size:1.1rem;letter-spacing:2px;margin-top:12px;}
+    @media print{body{padding:0;}.no-print{display:none;}}
+  </style></head><body>
+  <div class="receipt">
+    <div class="receipt-header">
+      <h1>🏫 Ansha Montessori LMS</h1>
+      <p>Teacher Training Institute — Fee Receipt</p>
+    </div>
+    <div class="receipt-body">
+      <div class="receipt-no">
+        <span class="label">Receipt No.</span><span class="value">${p.receiptNo || '—'}</span>
+      </div>
+      <table>
+        <tr><td>Student Name</td><td>${s.name}</td></tr>
+        <tr><td>Student Email</td><td>${s.email}</td></tr>
+        <tr><td>Course</td><td>${c.icon} ${c.title}</td></tr>
+        <tr><td>Payment Method</td><td>${methodLabels[p.method] || p.method}</td></tr>
+        <tr><td>Payment Date</td><td>${formatDate(p.paidAt)}</td></tr>
+        ${p.notes ? `<tr><td>Notes</td><td>${p.notes}</td></tr>` : ''}
+        <tr class="amount-row"><td>Amount Paid</td><td>₹${(p.amount || 0).toLocaleString('en-IN')}</td></tr>
+      </table>
+      <div style="text-align:center;margin-top:20px;">
+        <div class="stamp">✓ PAID</div>
+      </div>
+    </div>
+    <div class="receipt-footer">
+      <p>This is a computer-generated receipt and does not require a physical signature.</p>
+      <p>Ansha Montessori LMS · Generated on ${new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'})}</p>
+      <button class="no-print" onclick="window.print()" style="margin-top:8px;padding:8px 20px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.9rem;">🖨 Print Receipt</button>
+    </div>
+  </div>
+  <script>window.onload=()=>window.print();<\/script>
+  </body></html>`);
+  win.document.close();
 }
 </script>
 </body>

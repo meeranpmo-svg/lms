@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Grade Report — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">My Grade Report</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div><h1>📊 My Grade Report</h1><p>Your academic performance across all enrolled courses</p></div>
+        <button class="btn btn-outline no-print" onclick="window.print()"><i class="fa-solid fa-print"></i> Print</button>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="grid grid-4 mb-5" id="gb-summary" style="gap:var(--space-4);"></div>
+
+      <!-- Per-course breakdown -->
+      <div id="gb-courses"></div>
+
+      <!-- Overall table -->
+      <div class="card mt-5">
+        <div class="card-header">
+          <h2>Overall Performance</h2>
+          <div class="flex gap-3 text-xs text-muted items-center">
+            <span><span class="grade-pill A">A</span> 80–100%</span>
+            <span><span class="grade-pill B">B</span> 60–79%</span>
+            <span><span class="grade-pill C">C</span> 40–59%</span>
+            <span><span class="grade-pill D">D</span> &lt;40%</span>
+          </div>
+        </div>
+        <div class="table-wrapper" id="gb-table"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/supabase.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('student');
+if (user) renderGradeReport();
+
+function gradeLabel(pct) {
+  if (pct >= 80) return 'A';
+  if (pct >= 60) return 'B';
+  if (pct >= 40) return 'C';
+  if (pct > 0)   return 'D';
+  return 'N';
+}
+
+function gradeColor(g) {
+  return { A: '#16a34a', B: '#2563eb', C: '#d97706', D: '#dc2626', N: '#94a3b8' }[g] || '#94a3b8';
+}
+
+function renderGradeReport() {
+  const enrollments = getStudentEnrollments(user.id);
+  if (!enrollments.length) {
+    document.getElementById('gb-summary').innerHTML = '';
+    document.getElementById('gb-courses').innerHTML = '<div class="empty-state"><div class="empty-icon">📚</div><p>You are not enrolled in any courses yet</p></div>';
+    document.getElementById('gb-table').innerHTML = '';
+    return;
+  }
+
+  const courseRows = enrollments.map(e => {
+    const course = dbGetOne(DB.COURSES, e.courseId);
+    if (!course) return null;
+
+    // Assignments
+    const courseAssignments = dbGet(DB.ASSIGNMENTS).filter(a => a.courseId === e.courseId);
+    const aSubmissions = dbGet(DB.SUBMISSIONS).filter(sub =>
+      sub.type === 'assignment' && sub.studentId === user.id &&
+      courseAssignments.some(a => a.id === sub.assignmentId) && sub.marks !== null
+    );
+    const aTotal  = aSubmissions.reduce((sum, sub) => {
+      const a = dbGetOne(DB.ASSIGNMENTS, sub.assignmentId);
+      return sum + (a ? a.maxMarks : 0);
+    }, 0);
+    const aScored = aSubmissions.reduce((sum, sub) => sum + (sub.marks || 0), 0);
+    const aPercent = aTotal > 0 ? Math.round((aScored / aTotal) * 100) : null;
+
+    // Quizzes
+    const courseQuizzes = dbGet(DB.QUIZZES).filter(q => q.courseId === e.courseId);
+    const qSubmissions = dbGet(DB.SUBMISSIONS).filter(sub =>
+      sub.type === 'quiz' && sub.studentId === user.id &&
+      courseQuizzes.some(q => q.id === sub.quizId)
+    );
+    const qPercent = qSubmissions.length
+      ? Math.round(qSubmissions.reduce((s, sub) => s + (sub.percentage || 0), 0) / qSubmissions.length)
+      : null;
+
+    // Attendance
+    const attRecords = getStudentAttendance(user.id, e.courseId);
+    const present = attRecords.filter(r => (r.record || r).status === 'present').length;
+    const attPercent = attRecords.length ? Math.round((present / attRecords.length) * 100) : null;
+
+    // Progress
+    const progress = e.progress || 0;
+
+    // Overall
+    const components = [aPercent, qPercent, progress, attPercent].filter(v => v !== null);
+    const overall = components.length ? Math.round(components.reduce((a, b) => a + b, 0) / components.length) : 0;
+
+    return { course, aPercent, qPercent, progress, attPercent, overall, aCount: aSubmissions.length, qCount: qSubmissions.length, aTotal: courseAssignments.length, qTotal: courseQuizzes.length };
+  }).filter(Boolean);
+
+  // Summary cards
+  const overallAvg = courseRows.length ? Math.round(courseRows.reduce((s, r) => s + r.overall, 0) / courseRows.length) : 0;
+  const grade = gradeLabel(overallAvg);
+  const totalAssignments = courseRows.reduce((s, r) => s + r.aCount, 0);
+  const totalQuizzes = courseRows.reduce((s, r) => s + r.qCount, 0);
+
+  document.getElementById('gb-summary').innerHTML = [
+    { label: 'Enrolled Courses', value: courseRows.length, icon: '📚', color: 'teal' },
+    { label: 'Overall Average', value: overallAvg + '%', icon: '📊', color: 'blue' },
+    { label: 'Overall Grade', value: grade, icon: '🏅', color: grade === 'A' ? 'gold' : (grade === 'B' ? 'blue' : (grade === 'C' ? 'orange' : 'red')) },
+    { label: 'Assignments Done', value: totalAssignments + ' submitted', icon: '✅', color: 'green' },
+  ].map(s => `<div class="stat-card"><div class="stat-icon ${s.color}">${s.icon}</div><div class="stat-info"><div class="stat-value">${s.value}</div><div class="stat-label">${s.label}</div></div></div>`).join('');
+
+  // Per-course breakdown cards
+  document.getElementById('gb-courses').innerHTML = courseRows.map(r => {
+    const g = gradeLabel(r.overall);
+    const na = v => v === null ? '<span class="text-muted text-sm">N/A</span>' : `<span class="grade-pill ${gradeLabel(v)}">${v}%</span>`;
+    return `
+    <div class="card mb-4">
+      <div class="card-header">
+        <div>
+          <h3 class="font-semibold">${r.course.icon} ${r.course.title}</h3>
+          <p class="text-xs text-muted">${r.aCount}/${r.aTotal} assignments · ${r.qCount}/${r.qTotal} quizzes</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="text-align:center;">
+            <div style="font-size:2rem;font-weight:800;color:${gradeColor(g)};">${g}</div>
+            <div class="text-xs text-muted">Grade</div>
+          </div>
+          <div style="text-align:center;">
+            <div class="font-bold" style="font-size:1.3rem;">${r.overall}%</div>
+            <div class="text-xs text-muted">Overall</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="grid grid-4" style="gap:var(--space-3);">
+          <div style="text-align:center;padding:12px;background:var(--gray-50);border-radius:8px;">
+            <div class="text-xs text-muted mb-1">Assignments</div>
+            <div>${na(r.aPercent)}</div>
+          </div>
+          <div style="text-align:center;padding:12px;background:var(--gray-50);border-radius:8px;">
+            <div class="text-xs text-muted mb-1">Quizzes</div>
+            <div>${na(r.qPercent)}</div>
+          </div>
+          <div style="text-align:center;padding:12px;background:var(--gray-50);border-radius:8px;">
+            <div class="text-xs text-muted mb-1">Progress</div>
+            <div>${progressBar(r.progress)}</div>
+          </div>
+          <div style="text-align:center;padding:12px;background:var(--gray-50);border-radius:8px;">
+            <div class="text-xs text-muted mb-1">Attendance</div>
+            <div>${na(r.attPercent)}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Summary table
+  const na = v => v === null ? '<span class="text-muted">—</span>' : `<span class="grade-pill ${gradeLabel(v)}">${v}%</span>`;
+  document.getElementById('gb-table').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Course</th>
+        <th class="grade-cell">Assignments</th>
+        <th class="grade-cell">Quizzes</th>
+        <th class="grade-cell">Progress</th>
+        <th class="grade-cell">Attendance</th>
+        <th class="grade-cell">Overall</th>
+        <th class="grade-cell">Grade</th>
+      </tr></thead>
+      <tbody>
+        ${courseRows.map(r => `<tr>
+          <td><span class="font-medium text-sm">${r.course.icon} ${r.course.title}</span></td>
+          <td class="grade-cell">${na(r.aPercent)}</td>
+          <td class="grade-cell">${na(r.qPercent)}</td>
+          <td class="grade-cell">${progressBar(r.progress)}</td>
+          <td class="grade-cell">${na(r.attPercent)}</td>
+          <td class="grade-cell"><strong>${r.overall}%</strong></td>
+          <td class="grade-cell"><span class="grade-pill ${gradeLabel(r.overall)}">${gradeLabel(r.overall)}</span></td>
+        </tr>`).join('')}
+        <tr style="background:var(--gray-50);font-weight:700;">
+          <td>Overall Average</td>
+          <td colspan="4" class="grade-cell"></td>
+          <td class="grade-cell">${overallAvg}%</td>
+          <td class="grade-cell"><span class="grade-pill ${grade}">${grade}</span></td>
+        </tr>
+      </tbody>
+    </table>`;
+}
+</script>
+</body>
+</html>
