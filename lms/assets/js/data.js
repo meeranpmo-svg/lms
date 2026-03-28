@@ -641,8 +641,8 @@ function getAssessmentResults(assessmentId) {
 
 /* ---- Seed default assessments ---- */
 (function initAssessmentSeed() {
-  // v2 key so existing users also get Skinner Assessment
-  if (localStorage.getItem('lms_assessments_seeded_v2')) return;
+  // v3 key so existing users get all 5 assessments
+  if (localStorage.getItem('lms_assessments_seeded_v3')) return;
   const seed = [
     {
       id: 'asmt1',
@@ -661,9 +661,36 @@ function getAssessmentResults(assessmentId) {
       maxScore: 100,
       createdAt: new Date().toISOString(),
       description: 'Skinner Behavioural Theory — Assessment'
+    },
+    {
+      id: 'asmt3',
+      title: 'Assessment 3',
+      courseId: 'c1',
+      formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSf0wAGEzd_k3drtNyk8eReT4kyvULhBJOcqfgx8FDePOENaqw/viewform?usp=header',
+      maxScore: 100,
+      createdAt: new Date().toISOString(),
+      description: 'Assessment 3'
+    },
+    {
+      id: 'asmt4',
+      title: 'Assessment 4',
+      courseId: 'c1',
+      formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSedN-ZMExMzxwYwpozVV6rGna9LjJHOguuhQKq_JBFc0pkdZw/viewform?usp=sharing',
+      maxScore: 100,
+      createdAt: new Date().toISOString(),
+      description: 'Assessment 4'
+    },
+    {
+      id: 'asmt5',
+      title: 'Assessment 5',
+      courseId: 'c1',
+      formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSdmNmq5yGzt6oCRS-MTzQRdKlcUH46CWxmkdn9lk6D7bpHT2Q/viewform?usp=header',
+      maxScore: 100,
+      createdAt: new Date().toISOString(),
+      description: 'Assessment 5'
     }
   ];
   const existingIds = dbGet(DB.ASSESSMENTS).map(a => a.id);
   seed.filter(a => !existingIds.includes(a.id)).forEach(a => dbSave(DB.ASSESSMENTS, a));
-  localStorage.setItem('lms_assessments_seeded_v2', 'true');
+  localStorage.setItem('lms_assessments_seeded_v3', 'true');
 })();
