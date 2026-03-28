@@ -26,6 +26,7 @@
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-outline" id="sync-btn" onclick="syncFromDrive()" title="Fetch new recordings from Google Drive folder">🔄 Sync from Drive</button>
+          <button class="btn btn-outline" id="push-sb-btn" onclick="pushAllToSupabase()" title="Push all recordings to Supabase so students see them on all devices">☁️ Push to Supabase</button>
           <button class="btn btn-primary" onclick="openAddModal()">+ Add Recording</button>
         </div>
       </div>
@@ -146,8 +147,8 @@ if (user) {
     .catch(() => {})
     .finally(() => {
       renderPage();
-      // Push local seeded recordings to Supabase so students can see them
-      sbSeedRecordingsToSupabase().catch(() => {});
+      // Push all recordings to Supabase (runs every time to ensure sync)
+      pushAllToSupabase().catch(() => {});
     });
 }
 
@@ -329,6 +330,29 @@ function clearFilters() {
   document.getElementById('search-input').value = '';
   document.getElementById('filter-course').value = '';
   renderList();
+}
+
+async function pushAllToSupabase() {
+  const btn = document.getElementById('push-sb-btn');
+  btn.disabled = true;
+  btn.textContent = '☁️ Pushing…';
+  const recs = getRecordings();
+  if (!recs.length) { showToast('No recordings to push', 'warning'); btn.disabled=false; btn.textContent='☁️ Push to Supabase'; return; }
+  try {
+    const rows = recs.map(r => ({
+      id: r.id, course_id: r.courseId || null,
+      title: r.title, drive_url: r.driveUrl,
+      session_date: r.date || null, description: r.description || null
+    }));
+    const { error } = await _sb.from('recordings').upsert(rows, { onConflict: 'id' });
+    if (error) throw error;
+    showToast(`✅ ${recs.length} recordings synced to Supabase — students can now access them on all devices`, 'success');
+    localStorage.setItem('lms_recordings_sb_seeded', 'true');
+  } catch (e) {
+    showToast('❌ Supabase sync failed — make sure the recordings table exists (run create_recordings_table.sql)', 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = '☁️ Push to Supabase';
 }
 
 /* =====================================================================
