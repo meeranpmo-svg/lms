@@ -641,66 +641,25 @@ function getAssessmentResults(assessmentId) {
 
 /* ---- Seed default assessments ---- */
 (function initAssessmentSeed() {
-  // v4 key so existing users get all 6 assessments
-  if (localStorage.getItem('lms_assessments_seeded_v4')) return;
+  // v5 key so existing users get all 7 assessments
+  if (localStorage.getItem('lms_assessments_seeded_v5')) return;
   const seed = [
-    {
-      id: 'asmt1',
-      title: 'Montessori Diploma Assessment',
-      courseId: 'c1',
-      formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScOQqEo3Zme2MbFJ3JrP3k7GEx1Mp73nyp6SQ70yV91xOHB4A/viewform?usp=header',
-      maxScore: 100,
-      createdAt: new Date().toISOString(),
-      description: 'Advance Montessori Diploma — Knowledge Assessment'
-    },
-    {
-      id: 'asmt2',
-      title: 'Skinner Assessment',
-      courseId: 'c1',
-      formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLScM2iud9Q7De4qyA_wOrjRs9xFCrKBeKPDAU2bRr8FO7g03Mw/viewform?usp=header',
-      maxScore: 100,
-      createdAt: new Date().toISOString(),
-      description: 'Skinner Behavioural Theory — Assessment'
-    },
-    {
-      id: 'asmt3',
-      title: 'Assessment 3',
-      courseId: 'c1',
-      formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSf0wAGEzd_k3drtNyk8eReT4kyvULhBJOcqfgx8FDePOENaqw/viewform?usp=header',
-      maxScore: 100,
-      createdAt: new Date().toISOString(),
-      description: 'Assessment 3'
-    },
-    {
-      id: 'asmt4',
-      title: 'Assessment 4',
-      courseId: 'c1',
-      formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSedN-ZMExMzxwYwpozVV6rGna9LjJHOguuhQKq_JBFc0pkdZw/viewform?usp=sharing',
-      maxScore: 100,
-      createdAt: new Date().toISOString(),
-      description: 'Assessment 4'
-    },
-    {
-      id: 'asmt5',
-      title: 'Assessment 5',
-      courseId: 'c1',
-      formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSdmNmq5yGzt6oCRS-MTzQRdKlcUH46CWxmkdn9lk6D7bpHT2Q/viewform?usp=header',
-      maxScore: 100,
-      createdAt: new Date().toISOString(),
-      description: 'Assessment 5'
-    }
-  ];
-    {
-      id: 'asmt6',
-      title: 'Assessment 6',
-      courseId: 'c1',
-      formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSeN0mZWagDLHd-4nqOG6i65ZxFEkVwrInZzm587AXej3OUeQQ/viewform?usp=header',
-      maxScore: 100,
-      createdAt: new Date().toISOString(),
-      description: 'Assessment 6'
-    }
+    { id:'asmt1', title:'Montessori Diploma Assessment', courseId:'c1', maxScore:100, description:'Advance Montessori Diploma — Knowledge Assessment',
+      formUrl:'https://docs.google.com/forms/d/e/1FAIpQLScOQqEo3Zme2MbFJ3JrP3k7GEx1Mp73nyp6SQ70yV91xOHB4A/viewform?usp=header' },
+    { id:'asmt2', title:'Skinner Assessment', courseId:'c1', maxScore:100, description:'Skinner Behavioural Theory — Assessment',
+      formUrl:'https://docs.google.com/forms/d/e/1FAIpQLScM2iud9Q7De4qyA_wOrjRs9xFCrKBeKPDAU2bRr8FO7g03Mw/viewform?usp=header' },
+    { id:'asmt3', title:'Assessment 3', courseId:'c1', maxScore:100, description:'Assessment 3',
+      formUrl:'https://docs.google.com/forms/d/e/1FAIpQLSf0wAGEzd_k3drtNyk8eReT4kyvULhBJOcqfgx8FDePOENaqw/viewform?usp=header' },
+    { id:'asmt4', title:'Assessment 4', courseId:'c1', maxScore:100, description:'Assessment 4',
+      formUrl:'https://docs.google.com/forms/d/e/1FAIpQLSedN-ZMExMzxwYwpozVV6rGna9LjJHOguuhQKq_JBFc0pkdZw/viewform?usp=sharing' },
+    { id:'asmt5', title:'Assessment 5', courseId:'c1', maxScore:100, description:'Assessment 5',
+      formUrl:'https://docs.google.com/forms/d/e/1FAIpQLSdmNmq5yGzt6oCRS-MTzQRdKlcUH46CWxmkdn9lk6D7bpHT2Q/viewform?usp=header' },
+    { id:'asmt6', title:'Assessment 6', courseId:'c1', maxScore:100, description:'Assessment 6',
+      formUrl:'https://docs.google.com/forms/d/e/1FAIpQLSeN0mZWagDLHd-4nqOG6i65ZxFEkVwrInZzm587AXej3OUeQQ/viewform?usp=header' },
+    { id:'asmt7', title:'Assessment 7', courseId:'c1', maxScore:100, description:'Assessment 7',
+      formUrl:'https://docs.google.com/forms/d/e/1FAIpQLScVmOUdkMfcFDAu5BvN1DQRSCM9dAloPhWJPbXLdK5ayRfKug/viewform?usp=header' },
   ];
   const existingIds = dbGet(DB.ASSESSMENTS).map(a => a.id);
-  seed.filter(a => !existingIds.includes(a.id)).forEach(a => dbSave(DB.ASSESSMENTS, a));
-  localStorage.setItem('lms_assessments_seeded_v4', 'true');
+  seed.filter(a => !existingIds.includes(a.id)).forEach(a => dbSave(DB.ASSESSMENTS, { ...a, createdAt: new Date().toISOString() }));
+  localStorage.setItem('lms_assessments_seeded_v5', 'true');
 })();
