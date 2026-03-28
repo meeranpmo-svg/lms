@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Guide — Ansha Montessori LMS</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff7ed; color: #1e293b; }
+    .page { max-width: 780px; margin: 0 auto; padding: 40px 32px; }
+
+    .header { background: linear-gradient(135deg, #ea580c, #f97316); border-radius: 16px; padding: 32px; color: #fff; margin-bottom: 28px; display: flex; align-items: center; gap: 20px; }
+    .header-icon { font-size: 3.5rem; }
+    .header h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 4px; }
+    .header p  { opacity: .85; font-size: .95rem; }
+    .role-badge { display: inline-block; background: rgba(255,255,255,.25); border-radius: 999px; padding: 4px 14px; font-size: .8rem; font-weight: 700; letter-spacing: .5px; margin-top: 8px; }
+
+    .login-box { background: #fff; border: 2px solid #ea580c; border-radius: 14px; padding: 24px 28px; margin-bottom: 24px; }
+    .login-box h2 { color: #ea580c; font-size: 1.1rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .cred-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .cred-label { font-size: .82rem; color: #64748b; font-weight: 600; min-width: 90px; }
+    .cred-value { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 14px; font-size: .95rem; font-weight: 700; color: #c2410c; flex: 1; letter-spacing: .3px; }
+    .url-value  { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 14px; font-size: .88rem; font-weight: 600; color: #0f766e; flex: 1; word-break: break-all; }
+
+    .section { background: #fff; border-radius: 14px; padding: 22px 26px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+    .section h2 { font-size: 1rem; font-weight: 700; color: #ea580c; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .feature-item { display: flex; align-items: flex-start; gap: 10px; background: #f8fafc; border-radius: 8px; padding: 10px 12px; }
+    .feature-item .icon { font-size: 1.2rem; flex-shrink: 0; }
+    .feature-item .text { font-size: .85rem; }
+    .feature-item .text strong { display: block; font-weight: 700; color: #1e293b; margin-bottom: 2px; }
+    .feature-item .text span { color: #64748b; }
+
+    .steps { counter-reset: step; }
+    .step { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+    .step-num { background: #ea580c; color: #fff; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: .82rem; font-weight: 800; flex-shrink: 0; }
+    .step p { font-size: .88rem; color: #374151; padding-top: 3px; }
+
+    .warn-box { background: #fff7ed; border-left: 4px solid #f97316; border-radius: 8px; padding: 12px 16px; margin-top: 10px; font-size: .85rem; color: #9a3412; }
+    .warn-box strong { display: block; margin-bottom: 4px; }
+
+    .table-sm { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    .table-sm th { background: #fff7ed; color: #c2410c; font-weight: 700; padding: 8px 12px; text-align: left; border-bottom: 2px solid #fed7aa; }
+    .table-sm td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+    .table-sm tr:last-child td { border-bottom: none; }
+
+    .footer { text-align: center; margin-top: 28px; padding: 16px; background: #fff; border-radius: 12px; font-size: .82rem; color: #64748b; }
+    .footer strong { color: #ea580c; }
+
+    @media print {
+      body { background: #fff; }
+      .page { padding: 20px; }
+      .section, .login-box { box-shadow: none; border: 1px solid #e2e8f0; }
+    }
+    @media (max-width: 600px) { .feature-grid { grid-template-columns: 1fr; } .header { flex-direction: column; text-align: center; } }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div class="header-icon">👨‍💼</div>
+    <div>
+      <div class="role-badge">ADMIN</div>
+      <h1>Admin Login Guide</h1>
+      <p>Ansha Montessori Teacher Training Institute — LMS Portal</p>
+    </div>
+  </div>
+
+  <!-- Login Credentials -->
+  <div class="login-box">
+    <h2>🔐 Admin Login Credentials</h2>
+    <div class="cred-row">
+      <span class="cred-label">Portal URL</span>
+      <span class="url-value">https://radiant-naiad-98e62b.netlify.app/lms/admin/dashboard.html</span>
+    </div>
+    <div class="cred-row">
+      <span class="cred-label">Role</span>
+      <span class="cred-value">👨‍💼 Admin</span>
+    </div>
+    <div class="cred-row">
+      <span class="cred-label">Username</span>
+      <span class="cred-value">admin@ansha.edu</span>
+    </div>
+    <div class="cred-row">
+      <span class="cred-label">Password</span>
+      <span class="cred-value">admin123</span>
+    </div>
+    <div class="warn-box"><strong>⚠️ Security Notice</strong>Keep these credentials strictly confidential. Do not share with students or teachers.</div>
+  </div>
+
+  <!-- How to Login -->
+  <div class="section">
+    <h2>🚀 How to Login</h2>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><p>Open the Admin Portal URL above (bookmark it for quick access)</p></div>
+      <div class="step"><div class="step-num">2</div><p>Select <strong>Admin</strong> from the role buttons on the login page</p></div>
+      <div class="step"><div class="step-num">3</div><p>Enter username <strong>admin@ansha.edu</strong> and password</p></div>
+      <div class="step"><div class="step-num">4</div><p>Click <strong>Sign In</strong> — you will land on the Admin Dashboard</p></div>
+    </div>
+  </div>
+
+  <!-- Full Access -->
+  <div class="section">
+    <h2>⚙️ Full Admin Access</h2>
+    <div class="feature-grid">
+      <div class="feature-item"><div class="icon">👥</div><div class="text"><strong>Student Information</strong><span>Add, view, and manage all student records</span></div></div>
+      <div class="feature-item"><div class="icon">📝</div><div class="text"><strong>Admission</strong><span>Process new admissions and applications</span></div></div>
+      <div class="feature-item"><div class="icon">💰</div><div class="text"><strong>Payment</strong><span>Record fee payments and print receipts</span></div></div>
+      <div class="feature-item"><div class="icon">💸</div><div class="text"><strong>Expenses</strong><span>Track all institute expenditures by category</span></div></div>
+      <div class="feature-item"><div class="icon">📊</div><div class="text"><strong>Profit & Loss</strong><span>Financial overview: income vs expenses</span></div></div>
+      <div class="feature-item"><div class="icon">🎬</div><div class="text"><strong>Class Recordings</strong><span>Add Meet recordings — synced to all students</span></div></div>
+      <div class="feature-item"><div class="icon">📝</div><div class="text"><strong>Assessment Results</strong><span>Enter and manage student assessment scores</span></div></div>
+      <div class="feature-item"><div class="icon">📚</div><div class="text"><strong>Grade Book</strong><span>Full grade overview for all students</span></div></div>
+      <div class="feature-item"><div class="icon">📖</div><div class="text"><strong>Courses & Lessons</strong><span>Manage course content and materials</span></div></div>
+      <div class="feature-item"><div class="icon">🗓️</div><div class="text"><strong>Attendance</strong><span>Mark and view student attendance</span></div></div>
+      <div class="feature-item"><div class="icon">📢</div><div class="text"><strong>Notices</strong><span>Post announcements to students/teachers</span></div></div>
+      <div class="feature-item"><div class="icon">💾</div><div class="text"><strong>Backup & Restore</strong><span>Export/import all data for safekeeping</span></div></div>
+    </div>
+  </div>
+
+  <!-- Key Workflows -->
+  <div class="section">
+    <h2>📋 Key Admin Workflows</h2>
+    <table class="table-sm">
+      <thead><tr><th>Task</th><th>Where to Go</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Add a new student</td><td>Students → Student Information → + Add</td><td>Credentials auto-generated</td></tr>
+        <tr><td>Record fee payment</td><td>Finance → Payment → + Add Payment</td><td>Print receipt from same page</td></tr>
+        <tr><td>Add Meet recording</td><td>Academic → Class Recordings → + Add</td><td>Paste Google Drive share link</td></tr>
+        <tr><td>Enter assessment score</td><td>Academic → Assessment Results → select student</td><td>Syncs to student instantly</td></tr>
+        <tr><td>Add expense</td><td>Finance → Expenses → + Add Expense</td><td>Choose category, amount, date</td></tr>
+        <tr><td>View P&amp;L</td><td>Finance → Profit &amp; Loss</td><td>Auto-calculated from payments/expenses</td></tr>
+        <tr><td>Backup all data</td><td>System → Backup &amp; Restore → Export</td><td>Download JSON file to keep safe</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <strong>Ansha Montessori Teacher Training Institute — Admin Portal</strong><br>
+    radiant-naiad-98e62b.netlify.app/lms/admin/dashboard.html
+  </div>
+
+</div>
+</body>
+</html>
