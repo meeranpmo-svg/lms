@@ -74,12 +74,14 @@ async function sbSyncToLocal(userId, role) {
       ...(teachers || []).map(_userToLocal)
     ];
     dbSet(DB.USERS, allUsers);
-    // Safe merge helper — never replace local data with empty remote result
+    // Safe merge helper — local data always wins; remote only adds missing items
     function safeMerge(remote, localKey) {
       if (!remote || remote.length === 0) return;
-      const remoteIds = new Set(remote.map(r => r.id));
-      const localOnly = dbGet(localKey).filter(r => !remoteIds.has(r.id));
-      dbSet(localKey, [...remote, ...localOnly]);
+      const local = dbGet(localKey);
+      const localIds = new Set(local.map(r => r.id));
+      // Only add remote items that don't already exist locally (local wins on conflict)
+      const newFromRemote = remote.filter(r => !localIds.has(r.id));
+      if (newFromRemote.length > 0) dbSet(localKey, [...local, ...newFromRemote]);
     }
     safeMerge(enr  ? enr.map(_enrToLocal)  : [], DB.ENROLLMENTS);
     safeMerge(fees ? fees.map(_feeToLocal) : [], DB.PAYMENTS);
@@ -184,6 +186,10 @@ function sbPushExpense(e) {
     paid_to: e.paidTo || null,
     date: e.date || new Date().toISOString().split('T')[0]
   }, { onConflict: 'id' }).then(null, console.error);
+}
+
+function sbDeleteExpense(id) {
+  _sb.from('expenses').delete().eq('id', id).then(null, console.error);
 }
 
 /* ── Create student account in Supabase ─────────────────── */
