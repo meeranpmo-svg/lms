@@ -547,6 +547,69 @@ function initSeedData() {
 // Auto-init on load
 initSeedData();
 
+/* =============================================
+   LIVE CLASS SCHEDULE SEED
+   Runs independently so existing users also get sessions
+   ============================================= */
+function initScheduleSeed() {
+  if (localStorage.getItem('lms_schedule_v2')) return;
+
+  // Generate Saturdays and Tuesdays for 3 months from 2026-03-28
+  const sessions = [];
+  const meetLink = 'https://meet.google.com/zia-ejyh-kvj';
+  const courseId  = 'c1'; // Advance Montessori Teacher Training
+  const title     = 'Advance Montessori Diploma — Live Class';
+  const start     = new Date('2026-03-28');
+
+  // Generate next 14 Saturdays (day=6) and 14 Tuesdays (day=2)
+  for (let week = 0; week < 14; week++) {
+    // Saturday
+    const sat = new Date(start);
+    sat.setDate(start.getDate() + week * 7);
+    sessions.push({
+      id:       `lc_sat_${week}`,
+      courseId,
+      title,
+      date:     sat.toISOString().split('T')[0],
+      time:     '19:00',
+      duration: 60,
+      platform: 'Google Meet',
+      link:     meetLink,
+      description: 'Weekly Saturday live class — 7:00 PM to 8:00 PM IST',
+      createdBy: 'u1',
+      createdAt: new Date().toISOString(),
+    });
+
+    // Tuesday (3 days after Saturday)
+    const tue = new Date(sat);
+    tue.setDate(sat.getDate() + 3);
+    sessions.push({
+      id:       `lc_tue_${week}`,
+      courseId,
+      title,
+      date:     tue.toISOString().split('T')[0],
+      time:     '19:00',
+      duration: 60,
+      platform: 'Google Meet',
+      link:     meetLink,
+      description: 'Weekly Tuesday live class — 7:00 PM to 8:00 PM IST',
+      createdBy: 'u1',
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  // Merge: keep any manually added sessions, add seeded ones
+  const existing = dbGet(DB.SCHEDULE);
+  const existingIds = existing.map(s => s.id);
+  sessions.forEach(s => {
+    if (!existingIds.includes(s.id)) dbSave(DB.SCHEDULE, s);
+  });
+
+  localStorage.setItem('lms_schedule_v2', 'true');
+  console.log('✅ Live class schedule seeded (28 sessions: Sat + Tue for 14 weeks)');
+}
+initScheduleSeed();
+
 /* ---- Migration: upgrade quizzes to 20-question assessments ---- */
 (function migrateQuizzes() {
   const quizzes = dbGet(DB.QUIZZES);
