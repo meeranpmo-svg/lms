@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Montessori Assessment — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+  <style>
+    .assessment-hero {
+      background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
+      border-radius: var(--radius-lg);
+      padding: var(--space-6) var(--space-8);
+      color: #fff;
+      margin-bottom: var(--space-6);
+      display: flex;
+      align-items: center;
+      gap: var(--space-5);
+    }
+    .assessment-hero-icon {
+      font-size: 3.5rem;
+      flex-shrink: 0;
+    }
+    .assessment-hero h2 {
+      margin: 0 0 6px;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    .assessment-hero p {
+      margin: 0;
+      opacity: .88;
+      font-size: .95rem;
+      line-height: 1.5;
+    }
+    .form-container {
+      background: #fff;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      border: 1px solid var(--gray-200);
+    }
+    .form-container iframe {
+      display: block;
+      width: 100%;
+      min-height: 800px;
+      border: none;
+    }
+    .form-note {
+      padding: var(--space-4) var(--space-5);
+      background: var(--gray-50);
+      border-top: 1px solid var(--gray-200);
+      font-size: .83rem;
+      color: var(--gray-500);
+      text-align: center;
+    }
+    @media (max-width: 600px) {
+      .assessment-hero {
+        flex-direction: column;
+        text-align: center;
+        padding: var(--space-5);
+      }
+      .form-container iframe {
+        min-height: 900px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Montessori Assessment</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+
+      <div class="assessment-hero">
+        <div class="assessment-hero-icon">📝</div>
+        <div>
+          <h2>Advance Montessori Diploma — Assessment</h2>
+          <p>Complete this assessment to evaluate your understanding of Montessori principles and teaching methodology. Take your time and answer all questions honestly.</p>
+        </div>
+      </div>
+
+      <div class="form-container">
+        <iframe
+          src="https://docs.google.com/forms/d/e/1FAIpQLScOQqEo3Zme2MbFJ3JrP3k7GEx1Mp73nyp6SQ70yV91xOHB4A/viewform?embedded=true"
+          frameborder="0"
+          marginheight="0"
+          marginwidth="0"
+          allowfullscreen
+          loading="lazy"
+          title="Montessori Assessment Form">
+          Loading assessment…
+        </iframe>
+        <div class="form-note">
+          If the form does not load, <a href="https://docs.google.com/forms/d/e/1FAIpQLScOQqEo3Zme2MbFJ3JrP3k7GEx1Mp73nyp6SQ70yV91xOHB4A/viewform?usp=header" target="_blank" rel="noopener" style="color:var(--primary);">open it in a new tab →</a>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/supabase.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('student');
+</script>
+</body>
+</html>
