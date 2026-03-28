@@ -211,3 +211,51 @@ async function sbGetStudents() {
   const { data } = await _sb.from('users').select('*').eq('role', 'student').eq('is_active', true).order('name');
   return (data || []).map(_userToLocal);
 }
+
+/* ── Recordings sync ─────────────────────────────────────── */
+async function sbPushRecording(rec) {
+  return _sb.from('recordings').upsert({
+    id: rec.id, course_id: rec.courseId || null,
+    title: rec.title, drive_url: rec.driveUrl,
+    session_date: rec.date || null, description: rec.description || null
+  }, { onConflict: 'id' });
+}
+
+async function sbDeleteRecording(id) {
+  return _sb.from('recordings').delete().eq('id', id);
+}
+
+async function sbSyncRecordingsToLocal() {
+  try {
+    const { data, error } = await _sb.from('recordings')
+      .select('*').order('session_date', { ascending: false });
+    if (error || !data || !data.length) return false;
+    const recs = data.map(r => ({
+      id: r.id, courseId: r.course_id, title: r.title,
+      driveUrl: r.drive_url, date: r.session_date, description: r.description
+    }));
+    // Merge: keep local-only entries not yet in Supabase
+    const remoteIds = new Set(recs.map(r => r.id));
+    const localOnly = (JSON.parse(localStorage.getItem('lms_recordings') || '[]'))
+      .filter(r => !remoteIds.has(r.id));
+    localStorage.setItem('lms_recordings', JSON.stringify([...recs, ...localOnly]));
+    return true;
+  } catch (e) { return false; }
+}
+
+/* ── Push all local seeded recordings to Supabase (admin only, once) ── */
+async function sbSeedRecordingsToSupabase() {
+  if (localStorage.getItem('lms_recordings_sb_seeded')) return;
+  const recs = JSON.parse(localStorage.getItem('lms_recordings') || '[]');
+  if (!recs.length) return;
+  const rows = recs.map(r => ({
+    id: r.id, course_id: r.courseId || null,
+    title: r.title, drive_url: r.driveUrl,
+    session_date: r.date || null, description: r.description || null
+  }));
+  const { error } = await _sb.from('recordings').upsert(rows, { onConflict: 'id' });
+  if (!error) {
+    localStorage.setItem('lms_recordings_sb_seeded', 'true');
+    console.log('✅ Seeded ' + recs.length + ' recordings to Supabase');
+  }
+}

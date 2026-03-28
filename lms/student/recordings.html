@@ -68,7 +68,14 @@
 <script src="../assets/js/utils.js"></script>
 <script>
 const user = initPage('student');
-if (user) { sbSyncToLocal(user.id, 'student').then(renderPage).catch(renderPage); }
+if (user) {
+  // Sync recordings from Supabase first so students always see latest
+  sbSyncRecordingsToLocal()
+    .catch(() => {})
+    .finally(() => {
+      sbSyncToLocal(user.id, 'student').catch(() => {}).finally(renderPage);
+    });
+}
 
 function renderPage() {
   populateCourseFilter();
