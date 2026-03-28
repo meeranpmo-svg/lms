@@ -140,7 +140,16 @@
 <script src="../assets/js/utils.js"></script>
 <script>
 const user = initPage('admin');
-if (user) { sbSyncToLocal(user.id, 'admin').then(renderPage).catch(renderPage); }
+if (user) {
+  sbSyncToLocal(user.id, 'admin')
+    .then(() => sbSyncRecordingsToLocal())
+    .catch(() => {})
+    .finally(() => {
+      renderPage();
+      // Push local seeded recordings to Supabase so students can see them
+      sbSeedRecordingsToSupabase().catch(() => {});
+    });
+}
 
 function getRecordings() { return JSON.parse(localStorage.getItem('lms_recordings') || '[]'); }
 function saveRecordings(r) { localStorage.setItem('lms_recordings', JSON.stringify(r)); }
@@ -276,6 +285,7 @@ function saveRecording() {
   };
   if (idx >= 0) recs[idx] = rec; else recs.push(rec);
   saveRecordings(recs);
+  sbPushRecording(rec).catch(() => {});
   closeModal('rec-modal');
   renderStats();
   renderList();
@@ -285,6 +295,7 @@ function saveRecording() {
 function deleteRec(id, title) {
   showConfirm(`Delete recording "<strong>${title}</strong>"?`, () => {
     saveRecordings(getRecordings().filter(r => r.id !== id));
+    sbDeleteRecording(id).catch(() => {});
     renderStats();
     renderList();
     showToast('Recording deleted', 'warning');
@@ -437,6 +448,8 @@ async function _fetchDriveFiles(token) {
     });
 
     saveRecordings(updated);
+    // Push new recordings to Supabase
+    Promise.all(newFiles.map((f, i) => sbPushRecording(updated[updated.length - newFiles.length + i]))).catch(() => {});
     renderStats();
     renderList();
     showSyncBar(`✅ Synced! Added ${newFiles.length} new recording${newFiles.length > 1 ? 's' : ''} (Montessori ${nextNum}–${nextNum + newFiles.length - 1}).`);
