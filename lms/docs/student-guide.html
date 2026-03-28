@@ -39,16 +39,24 @@
     .footer { text-align: center; margin-top: 28px; padding: 16px; background: #fff; border-radius: 12px; font-size: .82rem; color: #64748b; }
     .footer strong { color: #16a34a; }
 
+    .dl-bar { position: fixed; bottom: 24px; right: 24px; z-index: 999; }
+    .dl-btn { background: #16a34a; color: #fff; border: none; border-radius: 999px; padding: 12px 22px; font-size: .95rem; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(22,163,74,.4); display: flex; align-items: center; gap: 8px; }
+    .dl-btn:hover { background: #15803d; }
+    .dl-btn:disabled { opacity: .6; cursor: not-allowed; }
     @media print {
       body { background: #fff; }
       .page { padding: 20px; }
       .section, .login-box { box-shadow: none; border: 1px solid #e2e8f0; }
+      .dl-bar { display: none; }
     }
     @media (max-width: 600px) { .feature-grid { grid-template-columns: 1fr; } .header { flex-direction: column; text-align: center; } }
   </style>
 </head>
 <body>
-<div class="page">
+<div class="dl-bar">
+  <button class="dl-btn" id="dl-btn" onclick="downloadPDF()">⬇️ Download PDF</button>
+</div>
+<div class="page" id="pdf-content">
 
   <div class="header">
     <div class="header-icon">👩‍🎓</div>
@@ -113,5 +121,19 @@
   </div>
 
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function downloadPDF() {
+  const btn = document.getElementById('dl-btn');
+  btn.disabled = true; btn.textContent = '⏳ Generating…';
+  html2pdf().set({
+    margin: 10, filename: 'Ansha-Student-Guide.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).from(document.getElementById('pdf-content')).save()
+    .then(() => { btn.disabled = false; btn.innerHTML = '⬇️ Download PDF'; });
+}
+</script>
 </body>
 </html>
