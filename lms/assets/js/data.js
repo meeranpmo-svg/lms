@@ -642,6 +642,8 @@ initScheduleSeed();
     { id: 'lb2', courseId: 'c4', module: 'Course Books', title: 'AMT-002: Foundations of Educational Psychology', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 10, pdf: 'assets/pdfs/amt-002-educational-psychology.pdf' },
     { id: 'lb3', courseId: 'c1', module: 'Course Books', title: 'AMT-003: Montessori Philosophy and Method', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 11, pdf: 'assets/pdfs/amt-003-montessori-philosophy.pdf' },
     { id: 'lb4', courseId: 'c1', module: 'Course Books', title: 'AMT-004: Pre-School Education', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 12, pdf: 'assets/pdfs/amt-004-preschool-education.pdf' },
+    { id: 'lb5', courseId: 'c1', module: 'Course Books', title: 'AMT-005: Preschool Administration and Management', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 13, pdf: 'assets/pdfs/preschool-admin-management.pdf' },
+    { id: 'lb6', courseId: 'c1', module: 'Course Books', title: 'AMT-006: NCF-ECCE — National Curriculum Framework for Early Childhood Care & Education', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 14, pdf: 'assets/pdfs/ncf-ecce-mwcd-goi.pdf' },
   ];
   const existing = dbGet(DB.LESSONS).map(l => l.id);
   books.forEach(b => { if (!existing.includes(b.id)) dbSave(DB.LESSONS, b); });
