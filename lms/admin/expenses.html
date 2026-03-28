@@ -262,6 +262,7 @@ function saveExpense() {
 function deleteExpense(id) {
   showConfirm('Delete this expense record?', () => {
     dbDelete(DB.EXPENSES, id);
+    sbDeleteExpense(id);
     renderStats(); renderCategoryBars(); populateMonthFilter(); renderTable();
     showToast('Expense deleted', 'warning');
   }, 'Delete Expense');
