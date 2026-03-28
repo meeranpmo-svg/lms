@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Classes — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Live Classes</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div><h1>Live Class Scheduler</h1><p>Schedule and manage Zoom/Meet sessions for your courses</p></div>
+        <button class="btn btn-primary" onclick="openModal('session-modal')"><i class="fa-solid fa-plus"></i> Schedule Class</button>
+      </div>
+
+      <!-- Filter -->
+      <div class="flex gap-3 mb-4 flex-wrap items-center">
+        <select id="filter-course" class="form-control" style="max-width:260px;" onchange="renderSessions()">
+          <option value="">All Courses</option>
+        </select>
+        <select id="filter-status" class="form-control" style="max-width:160px;" onchange="renderSessions()">
+          <option value="">All</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="past">Past</option>
+        </select>
+      </div>
+
+      <!-- Sessions list -->
+      <div id="sessions-list"></div>
+    </main>
+  </div>
+</div>
+
+<!-- Schedule Modal -->
+<div class="modal-backdrop" id="session-modal">
+  <div class="modal" style="max-width:540px;">
+    <div class="modal-header">
+      <h3 id="modal-title">Schedule Live Class</h3>
+      <button class="modal-close" onclick="closeModal('session-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Course *</label>
+          <select id="s-course" class="form-control"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Platform</label>
+          <select id="s-platform" class="form-control">
+            <option value="Zoom">Zoom</option>
+            <option value="Google Meet">Google Meet</option>
+            <option value="Microsoft Teams">Microsoft Teams</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Session Title *</label>
+        <input type="text" id="s-title" class="form-control" placeholder="e.g. Week 3 – Practical Activities">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date *</label>
+          <input type="date" id="s-date" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Time *</label>
+          <input type="time" id="s-time" class="form-control">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Duration (minutes)</label>
+          <input type="number" id="s-duration" class="form-control" value="60" min="15" max="300">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max Participants</label>
+          <input type="number" id="s-max" class="form-control" placeholder="Unlimited">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Meeting Link *</label>
+        <input type="url" id="s-link" class="form-control" placeholder="https://zoom.us/j/...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description / Agenda</label>
+        <textarea id="s-desc" class="form-control" placeholder="What will be covered in this session?" style="min-height:80px;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('session-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSession()"><i class="fa-solid fa-floppy-disk"></i> Save Session</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/supabase.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('admin');
+if (user) { populateCourseSelects(); renderSessions(); }
+
+function populateCourseSelects() {
+  const courses = dbGet(DB.COURSES);
+  const opts = courses.map(c => `<option value="${c.id}">${c.icon} ${c.title}</option>`).join('');
+  document.getElementById('filter-course').innerHTML += opts;
+  document.getElementById('s-course').innerHTML = '<option value="">— Select Course —</option>' + opts;
+}
+
+function renderSessions() {
+  const courseId = document.getElementById('filter-course').value;
+  const status   = document.getElementById('filter-status').value;
+  const today    = new Date().toISOString().split('T')[0];
+  let sessions   = getScheduleSessions(courseId || null);
+  if (status === 'upcoming') sessions = sessions.filter(s => s.date >= today);
+  if (status === 'past')     sessions = sessions.filter(s => s.date < today);
+  sessions.sort((a,b) => a.date.localeCompare(b.date));
+
+  if (!sessions.length) {
+    document.getElementById('sessions-list').innerHTML = `
+      <div class="empty-state"><div class="empty-icon">📅</div>
+        <h3>No sessions scheduled</h3>
+        <p>Click "Schedule Class" to add your first live session.</p>
+      </div>`;
+    return;
+  }
+
+  const platIcon = { 'Zoom':'🎥', 'Google Meet':'🟢', 'Microsoft Teams':'🔵' };
+  document.getElementById('sessions-list').innerHTML = sessions.map(s => {
+    const course   = dbGetOne(DB.COURSES, s.courseId);
+    const isPast   = s.date < today;
+    const d        = new Date(s.date);
+    return `
+    <div class="schedule-card mb-3">
+      <div class="schedule-date-badge">
+        <div class="day">${d.getDate()}</div>
+        <div class="month">${d.toLocaleString('default',{month:'short'})} ${d.getFullYear()}</div>
+      </div>
+      <div class="schedule-info">
+        <h4>${platIcon[s.platform]||'📹'} ${s.title}</h4>
+        <p class="text-sm text-muted">${course ? course.title : ''}</p>
+        <div class="schedule-meta">
+          <span><i class="fa-regular fa-clock"></i> ${s.time || 'TBD'}</span>
+          <span><i class="fa-solid fa-hourglass-half"></i> ${s.duration||60} min</span>
+          <span><i class="fa-solid fa-video"></i> ${s.platform||'Online'}</span>
+          ${s.description?`<span title="${s.description}"><i class="fa-solid fa-align-left"></i> Has agenda</span>`:''}
+        </div>
+      </div>
+      <div class="flex flex-col gap-2" style="align-items:flex-end;">
+        ${isPast
+          ? `<span class="badge badge-gray">Completed</span>`
+          : `<a href="${s.link}" target="_blank" class="schedule-join-btn"><i class="fa-solid fa-video"></i> Start</a>`}
+        <button class="btn btn-ghost btn-sm" onclick="editSession('${s.id}')"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn btn-danger btn-sm" onclick="deleteSession('${s.id}')"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function saveSession() {
+  const courseId = document.getElementById('s-course').value;
+  const title    = document.getElementById('s-title').value.trim();
+  const date     = document.getElementById('s-date').value;
+  const time     = document.getElementById('s-time').value;
+  const link     = document.getElementById('s-link').value.trim();
+  if (!courseId || !title || !date || !time || !link) { showToast('Please fill all required fields', 'error'); return; }
+
+  const session = {
+    id:          document.getElementById('edit-id').value || genId(),
+    courseId, title, date, time, link,
+    platform:    document.getElementById('s-platform').value,
+    duration:    parseInt(document.getElementById('s-duration').value) || 60,
+    maxParticipants: document.getElementById('s-max').value || null,
+    description: document.getElementById('s-desc').value.trim(),
+    createdBy:   user.id,
+    createdAt:   new Date().toISOString(),
+  };
+  saveScheduleSession(session);
+  closeModal('session-modal');
+  resetForm();
+  renderSessions();
+  showToast('Session scheduled!', 'success');
+
+  // Notify enrolled students
+  getCourseEnrollments(courseId).forEach(e => {
+    addNotification(e.studentId, `New live class: "${title}" on ${formatDate(date)} at ${time}`, 'info', '../student/schedule.html');
+  });
+}
+
+function editSession(id) {
+  const s = dbGetOne(DB.SCHEDULE, id);
+  if (!s) return;
+  document.getElementById('edit-id').value    = s.id;
+  document.getElementById('s-course').value   = s.courseId;
+  document.getElementById('s-title').value    = s.title;
+  document.getElementById('s-date').value     = s.date;
+  document.getElementById('s-time').value     = s.time;
+  document.getElementById('s-link').value     = s.link;
+  document.getElementById('s-platform').value = s.platform||'Zoom';
+  document.getElementById('s-duration').value = s.duration||60;
+  document.getElementById('s-max').value      = s.maxParticipants||'';
+  document.getElementById('s-desc').value     = s.description||'';
+  document.getElementById('modal-title').textContent = 'Edit Live Class';
+  openModal('session-modal');
+}
+
+function deleteSession(id) {
+  showConfirm('Delete this scheduled session?', () => {
+    deleteScheduleSession(id);
+    renderSessions();
+    showToast('Session deleted', 'success');
+  });
+}
+
+function resetForm() {
+  ['edit-id','s-title','s-date','s-time','s-link','s-desc','s-max'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('s-duration').value  = '60';
+  document.getElementById('s-platform').value  = 'Zoom';
+  document.getElementById('modal-title').textContent = 'Schedule Live Class';
+}
+</script>
+</body>
+</html>

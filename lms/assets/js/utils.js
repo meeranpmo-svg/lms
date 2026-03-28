@@ -3,6 +3,32 @@
    General utilities: dates, toasts, modals, formatting
    ========================================================= */
 
+/* ---- PWA: Service Worker + Install Prompt ---- */
+(function initPWA() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/lms/sw.js').catch(() => {});
+  }
+  let _deferredInstall = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _deferredInstall = e;
+    // Show install button if present
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'inline-flex';
+  });
+  window.addEventListener('appinstalled', () => {
+    _deferredInstall = null;
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'none';
+    showToast('App installed! 🎉', 'success');
+  });
+  window._triggerInstall = () => {
+    if (!_deferredInstall) return;
+    _deferredInstall.prompt();
+    _deferredInstall.userChoice.then(() => { _deferredInstall = null; });
+  };
+})();
+
 // Load Font Awesome 6
 (function () {
   if (document.querySelector('link[href*="font-awesome"]')) return;
@@ -107,7 +133,7 @@ function capitalize(str) {
   return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
 }
 function formatCurrency(amount) {
-  return 'Rs. ' + Number(amount).toLocaleString('en-PK');
+  return '₹' + Number(amount).toLocaleString('en-IN');
 }
 
 /* ---- Avatar helper ---- */
@@ -148,6 +174,74 @@ function filterTable(inputId, tableId, colIndices) {
   });
 }
 
+/* ---- Dark Mode ---- */
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('lms_theme', theme);
+}
+function toggleDarkMode() {
+  const current = document.documentElement.getAttribute('data-theme');
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+  _updateDarkToggleIcon();
+}
+function _updateDarkToggleIcon() {
+  const btn = document.getElementById('dark-toggle-btn');
+  if (btn) {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.innerHTML = isDark ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+    btn.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+  }
+}
+(function initTheme() {
+  const saved = localStorage.getItem('lms_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+})();
+
+/* ---- Notification Bell ---- */
+function renderNotifDropdown(userId) {
+  const wrapper = document.getElementById('notif-wrapper');
+  if (!wrapper || typeof dbGet === 'undefined') return;
+  const notifications = getNotifications(userId);
+  const unread = notifications.filter(n => !n.read).length;
+
+  const badge = document.getElementById('notif-badge');
+  if (badge) { badge.textContent = unread || ''; badge.style.display = unread ? 'flex' : 'none'; }
+
+  const body = document.getElementById('notif-dropdown-body');
+  if (!body) return;
+  if (!notifications.length) {
+    body.innerHTML = '<div class="notif-empty"><i class="fa-regular fa-bell" style="font-size:2rem;margin-bottom:8px;display:block;"></i>No notifications yet</div>';
+    return;
+  }
+  const iconMap = { info: '📘', success: '✅', warning: '⚠️', danger: '🔔' };
+  body.innerHTML = notifications.slice(0, 20).map(n => `
+    <div class="notif-item ${n.read ? '' : 'unread'}" onclick="readNotif('${n.id}','${userId}','${n.link || ''}')">
+      <div class="notif-item-icon ${n.type || 'info'}">${iconMap[n.type] || '📘'}</div>
+      <div class="notif-item-text">
+        <p>${n.message}</p>
+        <span>${daysAgo(n.createdAt)}</span>
+      </div>
+    </div>`).join('');
+}
+function readNotif(id, userId, link) {
+  markNotificationRead(id);
+  renderNotifDropdown(userId);
+  if (link) window.location.href = link;
+}
+function toggleNotifDropdown(userId) {
+  const dd = document.getElementById('notif-dropdown');
+  if (!dd) return;
+  const open = dd.classList.toggle('open');
+  if (open) renderNotifDropdown(userId);
+}
+function _closeNotifOnOutsideClick(e) {
+  const wrapper = document.getElementById('notif-wrapper');
+  if (wrapper && !wrapper.contains(e.target)) {
+    const dd = document.getElementById('notif-dropdown');
+    if (dd) dd.classList.remove('open');
+  }
+}
+
 /* ---- Sidebar active state ---- */
 function setActiveNav() {
   const page = window.location.pathname.split('/').pop().replace('.html', '');
@@ -166,17 +260,23 @@ function buildSidebar(user) {
     <div class="nav-section-title">Students</div>
     <a href="student-info.html" class="nav-item"><span class="nav-icon"><i class="fa-solid fa-id-card"></i></span> Student Information</a>
     <a href="admission.html"    class="nav-item"><span class="nav-icon"><i class="fa-solid fa-file-circle-plus"></i></span> Admission</a>
+    <a href="attendance.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-clipboard-check"></i></span> Attendance</a>
     <div class="nav-section-title">Academic</div>
     <a href="courses.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-book-open"></i></span> Courses</a>
     <a href="lessons.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-video"></i></span> Lessons & PDFs</a>
+    <a href="recordings.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-circle-play"></i></span> Class Recordings</a>
+    <a href="schedule.html"     class="nav-item"><span class="nav-icon"><i class="fa-solid fa-calendar-days"></i></span> Live Classes</a>
     <a href="results.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-trophy"></i></span> Exam Results</a>
+    <a href="leaderboard.html"  class="nav-item"><span class="nav-icon"><i class="fa-solid fa-ranking-star"></i></span> Leaderboard</a>
     <div class="nav-section-title">Finance</div>
     <a href="payment.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-receipt"></i></span> Payment</a>
     <a href="expenses.html"     class="nav-item"><span class="nav-icon"><i class="fa-solid fa-arrow-trend-down"></i></span> Expenses</a>
     <a href="profit-loss.html"  class="nav-item"><span class="nav-icon"><i class="fa-solid fa-chart-line"></i></span> Profit & Loss</a>
     <div class="nav-section-title">System</div>
-    <a href="reports.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-file-chart-column"></i></span> Reports</a>
-    <a href="backup.html"       class="nav-item"><span class="nav-icon"><i class="fa-solid fa-database"></i></span> Backup & Restore</a>`;
+    <a href="reports.html"          class="nav-item"><span class="nav-icon"><i class="fa-solid fa-file-chart-column"></i></span> Reports</a>
+    <a href="feedback-report.html"  class="nav-item"><span class="nav-icon"><i class="fa-solid fa-star-half-stroke"></i></span> Feedback Report</a>
+    <a href="webinar-report.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-microphone"></i></span> Webinar Report</a>
+    <a href="backup.html"           class="nav-item"><span class="nav-icon"><i class="fa-solid fa-database"></i></span> Backup & Restore</a>`;
 
   const teacherNav = `
     <div class="nav-section-title">Main</div>
@@ -185,7 +285,8 @@ function buildSidebar(user) {
     <div class="nav-section-title">Content</div>
     <a href="lessons.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-video"></i></span> Lessons</a>
     <a href="quizzes.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-circle-question"></i></span> Quizzes</a>
-    <a href="assignments.html"  class="nav-item"><span class="nav-icon"><i class="fa-solid fa-file-lines"></i></span> Assignments</a>`;
+    <a href="assignments.html"  class="nav-item"><span class="nav-icon"><i class="fa-solid fa-file-lines"></i></span> Assignments</a>
+    <a href="attendance.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-clipboard-check"></i></span> Attendance</a>`;
 
   const studentNav = `
     <div class="nav-section-title">Main</div>
@@ -193,8 +294,12 @@ function buildSidebar(user) {
     <a href="courses.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-compass"></i></span> Browse Courses</a>
     <div class="nav-section-title">My Learning</div>
     <a href="my-courses.html"    class="nav-item"><span class="nav-icon"><i class="fa-solid fa-graduation-cap"></i></span> My Courses</a>
+    <a href="calendar.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-calendar-days"></i></span> My Calendar</a>
+    <a href="schedule.html"      class="nav-item"><span class="nav-icon"><i class="fa-solid fa-video"></i></span> Live Classes</a>
+    <a href="recordings.html"    class="nav-item"><span class="nav-icon"><i class="fa-solid fa-circle-play"></i></span> Class Recordings</a>
     <a href="assignments.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-file-lines"></i></span> Assignments</a>
     <a href="results.html"       class="nav-item"><span class="nav-icon"><i class="fa-solid fa-trophy"></i></span> My Results</a>
+    <a href="leaderboard.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-ranking-star"></i></span> Leaderboard</a>
     <a href="profile.html"       class="nav-item"><span class="nav-icon"><i class="fa-solid fa-user-circle"></i></span> Profile & Certs</a>`;
 
   const navMap = { admin: adminNav, teacher: teacherNav, student: studentNav };
@@ -229,5 +334,107 @@ function initPage(role) {
   if (sidebar) { sidebar.innerHTML = buildSidebar(user); setActiveNav(); }
   const userNameEl = document.getElementById('user-name');
   if (userNameEl) userNameEl.textContent = user.name;
+  _initMobileNav(sidebar);
+  _initHeaderControls(user);
   return user;
+}
+
+function _initHeaderControls(user) {
+  const headerRight = document.querySelector('.header-right');
+  if (!headerRight) return;
+
+  // Inject PWA install button (hidden until browser fires beforeinstallprompt)
+  if (!document.getElementById('pwa-install-btn')) {
+    const installBtn = document.createElement('button');
+    installBtn.id = 'pwa-install-btn';
+    installBtn.className = 'btn btn-outline btn-sm';
+    installBtn.title = 'Install App';
+    installBtn.style.display = 'none';
+    installBtn.innerHTML = '<i class="fa-solid fa-download"></i> Install App';
+    installBtn.onclick = () => window._triggerInstall();
+    headerRight.prepend(installBtn);
+  }
+
+  // Inject dark mode toggle
+  if (!document.getElementById('dark-toggle-btn')) {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'dark-toggle-btn';
+    toggleBtn.className = 'dark-toggle';
+    toggleBtn.title = isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode';
+    toggleBtn.innerHTML = isDark ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+    toggleBtn.onclick = toggleDarkMode;
+    headerRight.prepend(toggleBtn);
+  }
+
+  // Inject notification bell
+  if (!document.getElementById('notif-wrapper') && typeof getNotifications !== 'undefined') {
+    const unread = getUnreadCount(user.id);
+    const wrapper = document.createElement('div');
+    wrapper.id = 'notif-wrapper';
+    wrapper.className = 'notif-wrapper';
+    wrapper.innerHTML = `
+      <button class="notif-btn" id="notif-bell-btn" onclick="toggleNotifDropdown('${user.id}')" title="Notifications">
+        <i class="fa-solid fa-bell"></i>
+        <span class="notif-badge" id="notif-badge" style="display:${unread ? 'flex' : 'none'}">${unread || ''}</span>
+      </button>
+      <div class="notif-dropdown" id="notif-dropdown">
+        <div class="notif-dropdown-header">
+          <h4>Notifications</h4>
+          <button class="btn btn-ghost btn-sm" onclick="markAllNotificationsRead('${user.id}');renderNotifDropdown('${user.id}')">Mark all read</button>
+        </div>
+        <div class="notif-dropdown-body" id="notif-dropdown-body"></div>
+        <div class="notif-dropdown-footer"><a href="#">View all</a></div>
+      </div>`;
+    // Insert before dark toggle
+    const darkBtn = document.getElementById('dark-toggle-btn');
+    headerRight.insertBefore(wrapper, darkBtn);
+    document.addEventListener('click', _closeNotifOnOutsideClick);
+  }
+}
+
+/* ---- Mobile sidebar toggle ---- */
+function _initMobileNav(sidebar) {
+  // Inject hamburger into .header-left
+  const headerLeft = document.querySelector('.header-left');
+  if (headerLeft && !document.getElementById('hamburger-btn')) {
+    const btn = document.createElement('button');
+    btn.id = 'hamburger-btn';
+    btn.className = 'hamburger-btn';
+    btn.setAttribute('aria-label', 'Toggle menu');
+    btn.innerHTML = '<i class="fa-solid fa-bars"></i>';
+    btn.onclick = toggleSidebar;
+    headerLeft.prepend(btn);
+  }
+  // Inject overlay
+  if (!document.getElementById('sidebar-overlay')) {
+    const ov = document.createElement('div');
+    ov.id = 'sidebar-overlay';
+    ov.className = 'sidebar-overlay';
+    ov.onclick = closeSidebar;
+    document.body.appendChild(ov);
+  }
+  // Auto-close sidebar on nav click (mobile)
+  if (sidebar) {
+    sidebar.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => { if (window.innerWidth <= 768) closeSidebar(); });
+    });
+  }
+}
+
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  if (!sb) return;
+  const open = sb.classList.toggle('open');
+  if (ov) ov.classList.toggle('active', open);
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+
+function closeSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('sidebar-overlay');
+  if (sb) sb.classList.remove('open');
+  if (ov) ov.classList.remove('active');
+  document.body.style.overflow = '';
 }

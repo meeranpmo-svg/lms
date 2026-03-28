@@ -1,0 +1,51 @@
+{
+  "name": "Ansha Montessori LMS",
+  "short_name": "Ansha LMS",
+  "description": "Ansha Montessori Teacher Training Institute — Learning Management System",
+  "start_url": "/lms/index.html",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0d9488",
+  "theme_color": "#0d9488",
+  "categories": ["education"],
+  "lang": "en",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%230d9488'/><text y='130' x='96' font-size='110' text-anchor='middle' font-family='sans-serif'>🎓</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%230d9488'/><text y='350' x='256' font-size='300' text-anchor='middle' font-family='sans-serif'>🎓</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Student Dashboard",
+      "short_name": "Dashboard",
+      "description": "Go to student dashboard",
+      "url": "/lms/student/dashboard.html",
+      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><text y='80' font-size='80'>🏠</text></svg>", "sizes": "96x96" }]
+    },
+    {
+      "name": "My Courses",
+      "short_name": "Courses",
+      "description": "View enrolled courses",
+      "url": "/lms/student/my-courses.html",
+      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><text y='80' font-size='80'>📚</text></svg>", "sizes": "96x96" }]
+    },
+    {
+      "name": "Live Classes",
+      "short_name": "Classes",
+      "description": "Join live class sessions",
+      "url": "/lms/student/schedule.html",
+      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><text y='80' font-size='80'>🎥</text></svg>", "sizes": "96x96" }]
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

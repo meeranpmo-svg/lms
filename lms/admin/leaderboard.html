@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leaderboard — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Leaderboard</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div><h1>🏆 Leaderboard</h1><p>Student rankings across all courses</p></div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <div class="flex gap-4 flex-wrap items-center">
+            <div class="form-group" style="margin:0;flex:1;min-width:200px;">
+              <label class="form-label">Course</label>
+              <select id="lb-course" class="form-control" onchange="renderLeaderboard()"></select>
+            </div>
+            <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+              <label class="form-label">Rank By</label>
+              <select id="lb-metric" class="form-control" onchange="renderLeaderboard()">
+                <option value="overall">Overall Score</option>
+                <option value="progress">Course Progress</option>
+                <option value="quizzes">Quiz Average</option>
+                <option value="attendance">Attendance %</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="podium-area" class="mb-6"></div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Full Rankings</h2>
+          <button class="btn btn-outline btn-sm" onclick="exportLeaderboard()"><i class="fa-solid fa-download"></i> Export CSV</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>#</th><th>Student</th><th>Score</th><th>Progress</th><th>Quiz Avg</th><th>Attendance</th></tr></thead>
+            <tbody id="lb-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/supabase.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('admin');
+if (user) { populateCourses(); renderLeaderboard(); }
+
+function populateCourses() {
+  const courses = dbGet(DB.COURSES);
+  document.getElementById('lb-course').innerHTML =
+    '<option value="">All Courses</option>' +
+    courses.map(c => `<option value="${c.id}">${c.icon} ${c.title}</option>`).join('');
+}
+
+function computeScores(courseId) {
+  const students = getUsersByRole('student');
+  return students.map(s => {
+    const enrols = courseId ? [getEnrollment(s.id, courseId)].filter(Boolean) : getStudentEnrollments(s.id);
+    const progVals = enrols.map(e => e.progress || 0);
+    const progress = progVals.length ? Math.round(progVals.reduce((a,b)=>a+b,0)/progVals.length) : 0;
+
+    const allSubs = dbGet(DB.SUBMISSIONS).filter(sub => sub.type==='quiz' && sub.studentId===s.id);
+    const filteredSubs = courseId
+      ? allSubs.filter(sub => dbGet(DB.QUIZZES).find(q=>q.courseId===courseId && q.id===sub.quizId))
+      : allSubs;
+    const quizAvg = filteredSubs.length ? Math.round(filteredSubs.reduce((a,b)=>a+(b.percentage||0),0)/filteredSubs.length) : 0;
+
+    const attRecords = courseId
+      ? getStudentAttendance(s.id, courseId)
+      : dbGet(DB.ATTENDANCE).flatMap(a => a.records.filter(r=>r.studentId===s.id).map(r=>({date:a.date,record:r})));
+    const present = attRecords.filter(a=>(a.record||a).status==='present').length;
+    const attPct = attRecords.length ? Math.round((present/attRecords.length)*100) : 0;
+
+    const overall = Math.round((progress + quizAvg + attPct) / 3);
+    return { student: s, progress, quizAvg, attPct, overall };
+  }).filter(s => s.overall > 0 || s.progress > 0 || s.quizAvg > 0);
+}
+
+function sortBy(data, metric) {
+  const key = metric === 'progress' ? 'progress' : metric === 'quizzes' ? 'quizAvg' : metric === 'attendance' ? 'attPct' : 'overall';
+  return [...data].sort((a,b) => b[key] - a[key]);
+}
+
+function renderLeaderboard() {
+  const courseId = document.getElementById('lb-course').value;
+  const metric   = document.getElementById('lb-metric').value;
+  const data     = sortBy(computeScores(courseId), metric);
+  const medals   = ['🥇','🥈','🥉'];
+  const topClass = ['top-1','top-2','top-3'];
+
+  // Podium
+  document.getElementById('podium-area').innerHTML = data.length >= 1 ? `
+    <div class="grid grid-3" style="gap:var(--space-4);max-width:600px;margin:0 auto;">
+      ${data.slice(0,3).map((r,i)=>`
+        <div class="card" style="text-align:center;padding:var(--space-5);border:2px solid ${i===0?'var(--accent)':i===1?'var(--gray-400)':'#f97316'};">
+          <div style="font-size:2.5rem;">${medals[i]}</div>
+          <div class="avatar" style="margin:var(--space-3) auto;background:var(--primary-light);color:var(--primary);">${r.student.avatar||getInitials(r.student.name)}</div>
+          <div class="font-semibold text-sm">${r.student.name}</div>
+          <div style="font-size:1.5rem;font-weight:800;color:var(--primary);margin-top:4px;">${metric==='progress'?r.progress:metric==='quizzes'?r.quizAvg:metric==='attendance'?r.attPct:r.overall}%</div>
+        </div>`).join('')}
+    </div>` : '';
+
+  // Table
+  if (!data.length) {
+    document.getElementById('lb-table').innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No data yet</td></tr>';
+    return;
+  }
+  document.getElementById('lb-table').innerHTML = data.map((r,i) => `
+    <tr>
+      <td><div class="leaderboard-rank" style="display:inline-flex;">${i<3?medals[i]:i+1}</div></td>
+      <td><div class="flex items-center gap-2">
+        <div class="avatar avatar-sm">${r.student.avatar||getInitials(r.student.name)}</div>
+        <span class="font-medium text-sm">${r.student.name}</span>
+      </div></td>
+      <td><span class="badge badge-primary">${r.overall}%</span></td>
+      <td>${progressBar(r.progress)}</td>
+      <td><span class="badge ${r.quizAvg>=60?'badge-success':'badge-warning'}">${r.quizAvg}%</span></td>
+      <td><span class="badge ${r.attPct>=75?'badge-success':r.attPct>=50?'badge-warning':'badge-danger'}">${r.attPct}%</span></td>
+    </tr>`).join('');
+}
+
+function exportLeaderboard() {
+  const courseId = document.getElementById('lb-course').value;
+  const metric   = document.getElementById('lb-metric').value;
+  const data     = sortBy(computeScores(courseId), metric);
+  const rows     = [['Rank','Name','Email','Overall%','Progress%','QuizAvg%','Attendance%']];
+  data.forEach((r,i) => rows.push([i+1, r.student.name, r.student.email, r.overall, r.progress, r.quizAvg, r.attPct]));
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'leaderboard.csv'; a.click();
+}
+
+function getInitials(name) {
+  return name ? name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() : '?';
+}
+</script>
+</body>
+</html>

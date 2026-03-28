@@ -25,7 +25,19 @@
           <h1>Student Management</h1>
           <p id="student-count">Loading…</p>
         </div>
-        <button class="btn btn-primary" onclick="openModal('add-student-modal')">+ Enroll New Student</button>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-ghost" id="sync-btn" onclick="syncStudents()">🔄 Sync New Registrations</button>
+          <button class="btn btn-primary" onclick="openModal('add-student-modal')">+ Enroll New Student</button>
+        </div>
+      </div>
+
+      <!-- New Registrations Banner -->
+      <div id="new-reg-banner" style="display:none;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:none;align-items:center;gap:12px;">
+        <span style="font-size:1.4rem;">🆕</span>
+        <div>
+          <strong style="color:#166534;" id="new-reg-count"></strong>
+          <span style="color:#15803d;font-size:0.88rem;margin-left:6px;">registered via the self-registration link</span>
+        </div>
       </div>
 
       <!-- Filter Bar -->
@@ -42,6 +54,21 @@
           <option value="paid">Paid</option>
           <option value="pending">Pending</option>
         </select>
+        <select class="form-control" id="filter-status" style="width:auto;min-width:130px;">
+          <option value="">All Status</option>
+          <option value="active">✅ Active</option>
+          <option value="inactive">🚫 Inactive</option>
+        </select>
+      </div>
+
+      <!-- Bulk Action Bar -->
+      <div class="bulk-action-bar" id="bulk-bar">
+        <span class="selected-count" id="bulk-count">0 selected</span>
+        <button class="btn btn-success btn-sm" onclick="bulkActivate()"><i class="fa-solid fa-check"></i> Activate</button>
+        <button class="btn btn-sm" style="background:#fee2e2;color:#b91c1c;border:none;" onclick="bulkDeactivate()"><i class="fa-solid fa-ban"></i> Deactivate</button>
+        <button class="btn btn-outline btn-sm" onclick="openBulkEnroll()"><i class="fa-solid fa-graduation-cap"></i> Enroll in Course</button>
+        <button class="btn btn-danger btn-sm" onclick="bulkRemove()"><i class="fa-solid fa-trash"></i> Remove</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearSelection()"><i class="fa-solid fa-xmark"></i> Clear</button>
       </div>
 
       <!-- Students Table -->
@@ -50,17 +77,40 @@
           <table>
             <thead>
               <tr>
+                <th style="width:36px;"><input type="checkbox" class="row-check" id="select-all" onchange="toggleSelectAll(this)"></th>
                 <th>Student</th>
                 <th>Contact</th>
                 <th>Enrolled Courses</th>
                 <th>Avg. Progress</th>
                 <th>Fee Status</th>
+                <th>Status</th>
                 <th>Joined</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="students-table"></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Bulk Enroll Modal -->
+      <div class="modal-backdrop" id="bulk-enroll-modal">
+        <div class="modal" style="max-width:420px;">
+          <div class="modal-header">
+            <h3>Bulk Enroll Students</h3>
+            <button class="modal-close" onclick="closeModal('bulk-enroll-modal')">×</button>
+          </div>
+          <div class="modal-body">
+            <p class="text-sm text-muted mb-4">Enroll <strong id="bulk-enroll-count">0</strong> selected student(s) into a course.</p>
+            <div class="form-group">
+              <label class="form-label">Select Course</label>
+              <select id="bulk-enroll-course" class="form-control"></select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('bulk-enroll-modal')">Cancel</button>
+            <button class="btn btn-primary" onclick="bulkEnrollConfirm()">Enroll Selected</button>
+          </div>
         </div>
       </div>
     </main>
@@ -120,17 +170,36 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../assets/js/data.js"></script>
+<script src="../assets/js/supabase.js"></script>
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/utils.js"></script>
 <script>
 const user = initPage('admin');
 if (user) renderPage();
 
+async function syncStudents() {
+  const btn = document.getElementById('sync-btn');
+  btn.textContent = '⏳ Syncing…';
+  btn.disabled = true;
+  try {
+    await sbSyncToLocal(user.id, 'admin');
+    renderStudents();
+    showToast('Student list refreshed from database', 'success');
+  } catch(e) {
+    showToast('Sync failed: ' + e.message, 'error');
+  }
+  btn.textContent = '🔄 Sync New Registrations';
+  btn.disabled = false;
+}
+
 function renderPage() {
   populateCourseFilters();
   renderStudents();
   setupSearch();
+  // Auto-sync on page load
+  if (window.sbSyncToLocal) sbSyncToLocal(user.id, 'admin').then(() => renderStudents()).catch(()=>{});
 }
 
 function populateCourseFilters() {
@@ -148,24 +217,48 @@ function renderStudents() {
 
   document.getElementById('student-count').textContent = `${students.length} students enrolled`;
 
+  const statusFilter = document.getElementById('filter-status').value;
   let filtered = students;
   if (courseFilter) filtered = filtered.filter(s => enrollments.some(e => e.studentId === s.id && e.courseId === courseFilter));
   if (feeFilter)    filtered = filtered.filter(s => enrollments.some(e => e.studentId === s.id && e.feeStatus === feeFilter));
+  if (statusFilter === 'active')   filtered = filtered.filter(s => s.isActive !== false);
+  if (statusFilter === 'inactive') filtered = filtered.filter(s => s.isActive === false);
 
   const searchQ = (document.getElementById('search-input').value || '').toLowerCase();
   if (searchQ) filtered = filtered.filter(s => s.name.toLowerCase().includes(searchQ) || s.email.toLowerCase().includes(searchQ));
 
-  const html = filtered.map(s => {
+  // Sort newest first
+  filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+  // Show new registrations banner (last 7 days)
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const newCount = filtered.filter(s => new Date(s.createdAt) > sevenDaysAgo).length;
+  const banner = document.getElementById('new-reg-banner');
+  if (newCount > 0) {
+    document.getElementById('new-reg-count').textContent = `${newCount} new student${newCount > 1 ? 's' : ''}`;
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+
+  const html = filtered.map((s,_i) => {
     const studentEnrolls = enrollments.filter(e => e.studentId === s.id);
     const avgProgress = studentEnrolls.length
       ? Math.round(studentEnrolls.reduce((sum, e) => sum + e.progress, 0) / studentEnrolls.length)
       : 0;
     const hasPending = studentEnrolls.some(e => e.feeStatus === 'pending');
-    return `<tr>
+    const isNew      = new Date(s.createdAt) > sevenDaysAgo;
+    const isActive   = s.isActive !== false;
+    const rowStyle   = !isActive ? 'background:#fff7f7;opacity:.85;' : (isNew ? 'background:#f0fdf4;' : '');
+    const toggleBtn  = isActive
+      ? `<button class="btn btn-sm" style="background:#fee2e2;color:#b91c1c;border:none;cursor:pointer;" onclick="toggleStatus('${s.id}','${s.name}',false)">🚫 Deactivate</button>`
+      : `<button class="btn btn-sm" style="background:#dcfce7;color:#15803d;border:none;cursor:pointer;" onclick="toggleStatus('${s.id}','${s.name}',true)">✅ Activate</button>`;
+    return `<tr style="${rowStyle}" data-id="${s.id}">
+      <td><input type="checkbox" class="row-check student-check" value="${s.id}" onchange="updateBulkBar()"></td>
       <td><div class="flex items-center gap-3">
         <div class="avatar">${s.avatar || getInitials(s.name)}</div>
         <div>
-          <div class="font-medium">${s.name}</div>
+          <div class="font-medium">${s.name} ${isNew ? '<span style="background:#16a34a;color:#fff;font-size:0.65rem;padding:2px 7px;border-radius:20px;font-weight:700;margin-left:4px;">NEW</span>' : ''}</div>
           <div class="text-xs text-muted">${s.email}</div>
         </div>
       </div></td>
@@ -173,22 +266,25 @@ function renderStudents() {
       <td><span class="badge badge-primary">${studentEnrolls.length} course${studentEnrolls.length !== 1 ? 's' : ''}</span></td>
       <td style="min-width:120px;">${progressBar(avgProgress)}</td>
       <td>${statusBadge(hasPending ? 'pending' : 'paid')}</td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px;font-size:0.8rem;font-weight:600;padding:4px 10px;border-radius:20px;${isActive ? 'background:#dcfce7;color:#15803d;' : 'background:#fee2e2;color:#b91c1c;'}">${isActive ? '✅ Active' : '🚫 Inactive'}</span></td>
       <td class="text-sm text-muted">${formatDate(s.createdAt)}</td>
       <td>
-        <div class="flex gap-2">
+        <div class="flex gap-2" style="flex-wrap:wrap;">
           <button class="btn btn-outline btn-sm" onclick='viewStudent("${s.id}")'>View</button>
+          ${toggleBtn}
           <button class="btn btn-danger btn-sm" onclick="removeStudent('${s.id}', '${s.name}')">Remove</button>
         </div>
       </td>
     </tr>`;
   }).join('');
-  document.getElementById('students-table').innerHTML = html || '<tr><td colspan="7" class="text-center text-muted" style="padding:2rem;">No students found</td></tr>';
+  document.getElementById('students-table').innerHTML = html || '<tr><td colspan="8" class="text-center text-muted" style="padding:2rem;">No students found</td></tr>';
 }
 
 function setupSearch() {
   document.getElementById('search-input').addEventListener('input', renderStudents);
   document.getElementById('filter-course').addEventListener('change', renderStudents);
   document.getElementById('filter-fee').addEventListener('change', renderStudents);
+  document.getElementById('filter-status').addEventListener('change', renderStudents);
 }
 
 function addStudent() {
@@ -250,6 +346,99 @@ function viewStudent(id) {
       <span>Member since: <strong>${formatDate(s.createdAt)}</strong></span>
     </div>`;
   openModal('student-detail-modal');
+}
+
+function toggleStatus(id, name, activate) {
+  const action = activate ? 'Activate' : 'Deactivate';
+  const msg    = activate
+    ? `Activate <strong>${name}</strong>? They will be able to log in again.`
+    : `Deactivate <strong>${name}</strong>? They will not be able to log in until reactivated.`;
+
+  showConfirm(msg, () => {
+    // Update localStorage
+    const users = dbGet(DB.USERS);
+    const student = users.find(u => u.id === id);
+    if (!student) return;
+    student.isActive = activate;
+    localStorage.setItem('lms_users', JSON.stringify(users));
+
+    // Sync to Supabase
+    _sb.from('users').update({ is_active: activate }).eq('id', id).then(null, console.warn);
+
+    renderStudents();
+    showToast(`${name} has been ${activate ? 'activated ✅' : 'deactivated 🚫'}`, activate ? 'success' : 'warning');
+  }, action + ' Student');
+}
+
+/* ---- Bulk Actions ---- */
+function getSelectedIds() {
+  return [...document.querySelectorAll('.student-check:checked')].map(c => c.value);
+}
+function updateBulkBar() {
+  const ids = getSelectedIds();
+  const bar = document.getElementById('bulk-bar');
+  bar.classList.toggle('visible', ids.length > 0);
+  document.getElementById('bulk-count').textContent = `${ids.length} selected`;
+  const all = document.querySelectorAll('.student-check');
+  document.getElementById('select-all').checked = ids.length === all.length && all.length > 0;
+  document.getElementById('select-all').indeterminate = ids.length > 0 && ids.length < all.length;
+}
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.student-check').forEach(c => { c.checked = cb.checked; });
+  updateBulkBar();
+}
+function clearSelection() {
+  document.querySelectorAll('.student-check').forEach(c => { c.checked = false; });
+  document.getElementById('select-all').checked = false;
+  updateBulkBar();
+}
+function bulkActivate() {
+  const ids = getSelectedIds();
+  if (!ids.length) return;
+  showConfirm(`Activate ${ids.length} student(s)?`, () => {
+    ids.forEach(id => { const s = dbGetOne(DB.USERS, id); if (s) { s.isActive = true; dbSave(DB.USERS, s); } });
+    renderStudents(); clearSelection(); showToast(`${ids.length} student(s) activated`, 'success');
+  });
+}
+function bulkDeactivate() {
+  const ids = getSelectedIds();
+  if (!ids.length) return;
+  showConfirm(`Deactivate ${ids.length} student(s)?`, () => {
+    ids.forEach(id => { const s = dbGetOne(DB.USERS, id); if (s) { s.isActive = false; dbSave(DB.USERS, s); } });
+    renderStudents(); clearSelection(); showToast(`${ids.length} student(s) deactivated`, 'warning');
+  });
+}
+function openBulkEnroll() {
+  const ids = getSelectedIds();
+  if (!ids.length) return;
+  document.getElementById('bulk-enroll-count').textContent = ids.length;
+  const courses = dbGet(DB.COURSES);
+  document.getElementById('bulk-enroll-course').innerHTML =
+    '<option value="">— Select Course —</option>' +
+    courses.map(c => `<option value="${c.id}">${c.icon} ${c.title}</option>`).join('');
+  openModal('bulk-enroll-modal');
+}
+function bulkEnrollConfirm() {
+  const courseId = document.getElementById('bulk-enroll-course').value;
+  if (!courseId) { showToast('Please select a course', 'error'); return; }
+  const ids = getSelectedIds();
+  let enrolled = 0;
+  ids.forEach(id => { if (enrollStudent(id, courseId)) enrolled++; });
+  closeModal('bulk-enroll-modal');
+  renderStudents(); clearSelection();
+  showToast(`${enrolled} student(s) enrolled (${ids.length - enrolled} already enrolled)`, 'success');
+}
+function bulkRemove() {
+  const ids = getSelectedIds();
+  if (!ids.length) return;
+  showConfirm(`Remove ${ids.length} student(s)? This cannot be undone.`, () => {
+    ids.forEach(id => {
+      dbDelete(DB.USERS, id);
+      dbSet(DB.ENROLLMENTS, dbGet(DB.ENROLLMENTS).filter(e => e.studentId !== id));
+      dbSet(DB.PROGRESS,    dbGet(DB.PROGRESS).filter(p => p.studentId !== id));
+    });
+    renderStudents(); clearSelection(); showToast(`${ids.length} student(s) removed`, 'warning');
+  }, 'Remove Students');
 }
 
 function removeStudent(id, name) {

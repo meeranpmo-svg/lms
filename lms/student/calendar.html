@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Calendar — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">My Calendar</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div><h1>My Calendar</h1><p>Assignments, quizzes, and live classes at a glance</p></div>
+      </div>
+
+      <!-- Legend -->
+      <div class="flex gap-4 mb-4 flex-wrap">
+        <span class="flex items-center gap-2 text-sm"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--danger);"></span> Assignment Due</span>
+        <span class="flex items-center gap-2 text-sm"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--info);"></span> Quiz</span>
+        <span class="flex items-center gap-2 text-sm"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--primary);"></span> Live Class</span>
+        <span class="flex items-center gap-2 text-sm"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--accent);"></span> Other</span>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <button class="btn btn-ghost btn-sm" onclick="prevMonth()">← Prev</button>
+          <h2 id="cal-title" style="font-size:1.1rem;"></h2>
+          <button class="btn btn-ghost btn-sm" onclick="nextMonth()">Next →</button>
+        </div>
+        <div class="card-body" style="padding:var(--space-4);">
+          <!-- Day headers -->
+          <div class="calendar-grid" id="cal-headers"></div>
+          <!-- Days -->
+          <div class="calendar-grid" id="cal-days" style="margin-top:4px;"></div>
+        </div>
+      </div>
+
+      <!-- Upcoming events list -->
+      <div class="card">
+        <div class="card-header"><h2>Upcoming Events (Next 30 Days)</h2></div>
+        <div class="card-body" id="upcoming-list"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/supabase.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('student');
+let calYear  = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+
+if (user) renderCalendar();
+
+function getEvents() {
+  const enrollments = getStudentEnrollments(user.id);
+  const courseIds   = enrollments.map(e => e.courseId);
+  const events = [];
+
+  // Assignments with due dates
+  dbGet(DB.ASSIGNMENTS).filter(a => courseIds.includes(a.courseId) && a.dueDate).forEach(a => {
+    const course = dbGetOne(DB.COURSES, a.courseId);
+    events.push({ date: a.dueDate.split('T')[0], title: a.title, type: 'assignment', course: course?.title || '' });
+  });
+
+  // Quizzes (use course start date or today as fallback if no date)
+  dbGet(DB.QUIZZES).filter(q => courseIds.includes(q.courseId) && q.dueDate).forEach(q => {
+    const course = dbGetOne(DB.COURSES, q.courseId);
+    events.push({ date: q.dueDate.split('T')[0], title: q.title, type: 'quiz', course: course?.title || '' });
+  });
+
+  // Scheduled live classes
+  getScheduleSessions().filter(s => courseIds.includes(s.courseId) && s.date).forEach(s => {
+    const course = dbGetOne(DB.COURSES, s.courseId);
+    events.push({ date: s.date, title: s.title, type: 'class', course: course?.title || '', link: s.link, time: s.time });
+  });
+
+  return events;
+}
+
+function renderCalendar() {
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const days   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  document.getElementById('cal-title').textContent = `${months[calMonth]} ${calYear}`;
+
+  document.getElementById('cal-headers').innerHTML = days.map(d =>
+    `<div class="calendar-day-header">${d}</div>`).join('');
+
+  const events = getEvents();
+  const eventMap = {};
+  events.forEach(e => {
+    if (!eventMap[e.date]) eventMap[e.date] = [];
+    eventMap[e.date].push(e);
+  });
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const daysInPrev  = new Date(calYear, calMonth, 0).getDate();
+  const today = new Date().toISOString().split('T')[0];
+
+  let html = '';
+  // Previous month filler
+  for (let i = firstDay - 1; i >= 0; i--) {
+    html += `<div class="calendar-day other-month"><div class="calendar-day-num">${daysInPrev - i}</div></div>`;
+  }
+  // Current month
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayEvents = eventMap[dateStr] || [];
+    const isToday = dateStr === today;
+    html += `<div class="calendar-day ${isToday ? 'today' : ''} ${dayEvents.length ? 'has-event' : ''}">
+      <div class="calendar-day-num">${d}</div>
+      ${dayEvents.slice(0,3).map(e => `<div class="cal-event ${e.type}">${e.title}</div>`).join('')}
+      ${dayEvents.length > 3 ? `<div class="cal-event" style="background:var(--gray-200);color:var(--gray-600);">+${dayEvents.length-3} more</div>` : ''}
+    </div>`;
+  }
+  // Next month filler
+  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+  for (let d = 1; d <= totalCells - firstDay - daysInMonth; d++) {
+    html += `<div class="calendar-day other-month"><div class="calendar-day-num">${d}</div></div>`;
+  }
+  document.getElementById('cal-days').innerHTML = html;
+  renderUpcoming(events);
+}
+
+function renderUpcoming(events) {
+  const today = new Date();
+  const limit = new Date(); limit.setDate(limit.getDate() + 30);
+  const upcoming = events
+    .filter(e => { const d = new Date(e.date); return d >= today && d <= limit; })
+    .sort((a,b) => new Date(a.date) - new Date(b.date));
+
+  if (!upcoming.length) {
+    document.getElementById('upcoming-list').innerHTML = '<p class="text-muted text-sm">No upcoming events in the next 30 days.</p>';
+    return;
+  }
+  const typeIcon = { assignment:'📝', quiz:'📋', class:'🎥' };
+  const typeBadge = { assignment:'badge-danger', quiz:'badge-info', class:'badge-primary' };
+  document.getElementById('upcoming-list').innerHTML = upcoming.map(e => `
+    <div class="flex items-center gap-4 py-3" style="border-bottom:1px solid var(--gray-100);">
+      <div style="text-align:center;min-width:52px;">
+        <div style="font-size:1.4rem;">${typeIcon[e.type]||'📅'}</div>
+      </div>
+      <div style="flex:1;">
+        <div class="font-medium text-sm">${e.title}</div>
+        <div class="text-xs text-muted">${e.course}${e.time?' · '+e.time:''}</div>
+      </div>
+      <div class="text-right">
+        <span class="badge ${typeBadge[e.type]||'badge-gray'} text-xs">${e.type}</span>
+        <div class="text-xs text-muted mt-1">${formatDate(e.date)}</div>
+      </div>
+      ${e.link ? `<a href="${e.link}" target="_blank" class="btn btn-sm btn-success">Join</a>` : ''}
+    </div>`).join('');
+}
+
+function prevMonth() {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+}
+function nextMonth() {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+}
+</script>
+</body>
+</html>

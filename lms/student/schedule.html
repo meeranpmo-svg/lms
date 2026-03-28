@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Classes — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Live Classes</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div><h1>Live Classes</h1><p>Your upcoming and past live sessions</p></div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex gap-3 mb-5">
+        <button class="btn btn-primary" id="tab-upcoming" onclick="switchTab('upcoming')">Upcoming</button>
+        <button class="btn btn-ghost"   id="tab-past"     onclick="switchTab('past')">Past Sessions</button>
+      </div>
+
+      <div id="sessions-list"></div>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/supabase.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('student');
+let activeTab = 'upcoming';
+if (user) renderSessions();
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tab-upcoming').className = tab === 'upcoming' ? 'btn btn-primary' : 'btn btn-ghost';
+  document.getElementById('tab-past').className     = tab === 'past'     ? 'btn btn-primary' : 'btn btn-ghost';
+  renderSessions();
+}
+
+function renderSessions() {
+  const today       = new Date().toISOString().split('T')[0];
+  const enrollments = getStudentEnrollments(user.id);
+  const courseIds   = enrollments.map(e => e.courseId);
+  let sessions      = getScheduleSessions().filter(s => courseIds.includes(s.courseId));
+
+  if (activeTab === 'upcoming') sessions = sessions.filter(s => s.date >= today).sort((a,b)=>a.date.localeCompare(b.date));
+  else                          sessions = sessions.filter(s => s.date < today).sort((a,b)=>b.date.localeCompare(a.date));
+
+  if (!sessions.length) {
+    document.getElementById('sessions-list').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">${activeTab === 'upcoming' ? '📅' : '📼'}</div>
+        <h3>${activeTab === 'upcoming' ? 'No upcoming classes' : 'No past sessions'}</h3>
+        <p>${activeTab === 'upcoming' ? 'Your teacher will schedule live sessions here.' : 'Completed sessions will appear here.'}</p>
+      </div>`;
+    return;
+  }
+
+  const platIcon = { 'Zoom':'🎥', 'Google Meet':'🟢', 'Microsoft Teams':'🔵' };
+  const now = new Date();
+
+  document.getElementById('sessions-list').innerHTML = sessions.map(s => {
+    const course  = dbGetOne(DB.COURSES, s.courseId);
+    const isPast  = s.date < today;
+    const d       = new Date(s.date + (s.time ? 'T' + s.time : ''));
+    const isNow   = !isPast && Math.abs(d - now) < 30 * 60 * 1000; // within 30 min
+    return `
+    <div class="schedule-card mb-3" style="${isNow ? 'border:2px solid var(--success);' : ''}">
+      <div class="schedule-date-badge" style="${isPast ? 'opacity:0.6;' : ''}">
+        <div class="day">${new Date(s.date).getDate()}</div>
+        <div class="month">${new Date(s.date).toLocaleString('default',{month:'short'})} ${new Date(s.date).getFullYear()}</div>
+      </div>
+      <div class="schedule-info">
+        ${isNow ? '<span class="badge badge-success mb-2" style="font-size:0.7rem;">🔴 LIVE NOW</span>' : ''}
+        <h4>${platIcon[s.platform]||'📹'} ${s.title}</h4>
+        <p class="text-sm text-muted mb-1">${course ? `${course.icon} ${course.title}` : ''}</p>
+        ${s.description ? `<p class="text-xs text-muted" style="margin-top:4px;">${s.description}</p>` : ''}
+        <div class="schedule-meta">
+          <span><i class="fa-regular fa-clock"></i> ${s.time || 'TBD'}</span>
+          <span><i class="fa-solid fa-hourglass-half"></i> ${s.duration || 60} min</span>
+          <span><i class="fa-solid fa-video"></i> ${s.platform || 'Online'}</span>
+        </div>
+      </div>
+      <div>
+        ${isPast
+          ? `<span class="badge badge-gray">Completed</span>`
+          : `<a href="${s.link}" target="_blank" class="schedule-join-btn">
+               <i class="fa-solid fa-video"></i> Join ${s.platform||''}
+             </a>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>

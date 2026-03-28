@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ansha Montessori — LMS Login</title>
+  <meta name="theme-color" content="#0d9488">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Ansha LMS">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="assets/css/main.css">
   <link rel="stylesheet" href="assets/css/components.css">
 </head>
@@ -72,10 +77,10 @@
       <!-- Login Form -->
       <form id="login-form" onsubmit="handleLogin(event)">
         <div class="form-group">
-          <label class="form-label">Email Address</label>
+          <label class="form-label">Username or Email</label>
           <div class="input-group">
-            <span class="input-icon">✉️</span>
-            <input type="email" id="email" class="form-control" placeholder="Enter your email" required autocomplete="email">
+            <span class="input-icon">👤</span>
+            <input type="text" id="email" class="form-control" placeholder="Enter your username or email" required autocomplete="username">
           </div>
         </div>
         <div class="form-group">
@@ -95,23 +100,22 @@
         </button>
       </form>
 
-      <!-- Demo Credentials -->
-      <div class="demo-creds">
-        <div class="demo-title"><i class="fa-solid fa-key"></i> Demo Credentials</div>
-        <div id="demo-info">
-          <p>Email: <code>ayesha@student.edu</code></p>
-          <p>Password: <code>student123</code></p>
-        </div>
+      <!-- Register Link -->
+      <div style="text-align:center;margin-top:18px;padding:14px;background:#f5f3ff;border-radius:10px;border:1px solid #e9d5ff;">
+        <p style="font-size:0.85rem;color:#555;margin-bottom:6px;">New student? Create your account</p>
+        <a href="register.html" style="display:inline-block;background:linear-gradient(135deg,#3730a3,#6d28d9);color:#fff;padding:9px 24px;border-radius:8px;font-size:0.88rem;font-weight:700;text-decoration:none;">Register Now →</a>
       </div>
 
       <div class="login-footer">
-        <p>© 2024 Ansha Montessori Teacher Training Institute</p>
+        <p>© 2025 Ansha Montessori Teacher Training Institute</p>
       </div>
     </div>
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/js/data.js"></script>
+<script src="assets/js/supabase.js"></script>
 <script src="assets/js/auth.js"></script>
 <script src="assets/js/utils.js"></script>
 <script>
@@ -121,27 +125,12 @@
   const existingSession = getSession();
   if (existingSession) redirectAfterLogin(existingSession.role);
 
-  const demoCreds = {
-    student: { email: 'ayesha@student.edu', password: 'student123' },
-    teacher: { email: 'fatima@ansha.edu', password: 'teacher123' },
-    admin:   { email: 'admin@ansha.edu',   password: 'admin123' }
-  };
-
   function selectRole(role, btn) {
     selectedRole = role;
     document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
-    const creds = demoCreds[role];
-    const icons = { student: '👩‍🎓', teacher: '👩‍🏫', admin: '👨‍💼' };
-    document.getElementById('demo-info').innerHTML = `
-      <p>Email: <code>${creds.email}</code></p>
-      <p>Password: <code>${creds.password}</code></p>`;
-    // Auto-fill for convenience
-    document.getElementById('email').value = creds.email;
-    document.getElementById('password').value = creds.password;
   }
 
-  // Pre-fill student demo
   selectRole('student', document.querySelector('.role-tab[data-role="student"]'));
 
   function togglePassword() {
@@ -151,32 +140,43 @@
     else { pw.type = 'password'; btn.textContent = '👁️'; }
   }
 
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault();
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    const errEl = document.getElementById('login-error');
-    const btnText = document.getElementById('btn-text');
+    const credential = document.getElementById('email').value.trim();
+    const password   = document.getElementById('password').value;
+    const errEl      = document.getElementById('login-error');
+    const btnText    = document.getElementById('btn-text');
     const btnSpinner = document.getElementById('btn-spinner');
 
     errEl.classList.add('hidden');
     btnText.textContent = 'Signing in…';
     btnSpinner.classList.remove('hidden');
+    document.getElementById('login-btn').disabled = true;
 
-    setTimeout(() => {
-      const result = login(email, password, selectedRole);
-      btnText.textContent = 'Sign In';
-      btnSpinner.classList.add('hidden');
+    const result = await loginAsync(credential, password, selectedRole);
 
-      if (result.success) {
-        showToast(`Welcome back, ${result.user.name}! 🎉`, 'success');
-        setTimeout(() => redirectAfterLogin(selectedRole), 600);
-      } else {
-        errEl.textContent = result.message;
-        errEl.classList.remove('hidden');
-      }
-    }, 500);
+    btnText.textContent = 'Sign In';
+    btnSpinner.classList.add('hidden');
+    document.getElementById('login-btn').disabled = false;
+
+    if (result.success) {
+      showToast(`Welcome back, ${result.user.name}! 🎉`, 'success');
+      // Redirect immediately — sync happens in background on dashboard
+      redirectAfterLogin(selectedRole);
+    } else {
+      errEl.textContent = result.message;
+      errEl.classList.remove('hidden');
+    }
   }
+</script>
+<script>
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/lms/sw.js')
+      .catch(() => {});
+  });
+}
 </script>
 </body>
 </html>

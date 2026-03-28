@@ -4,19 +4,24 @@
    ========================================================= */
 
 const DB = {
-  USERS:       'lms_users',
-  COURSES:     'lms_courses',
-  LESSONS:     'lms_lessons',
-  QUIZZES:     'lms_quizzes',
-  ASSIGNMENTS: 'lms_assignments',
-  SUBMISSIONS: 'lms_submissions',
-  ENROLLMENTS: 'lms_enrollments',
-  PROGRESS:    'lms_progress',
-  SESSION:     'lms_session',
-  NOTICES:     'lms_notices',
-  ADMISSIONS:  'lms_admissions',
-  PAYMENTS:    'lms_payments',
-  EXPENSES:    'lms_expenses',
+  USERS:         'lms_users',
+  COURSES:       'lms_courses',
+  LESSONS:       'lms_lessons',
+  QUIZZES:       'lms_quizzes',
+  ASSIGNMENTS:   'lms_assignments',
+  SUBMISSIONS:   'lms_submissions',
+  ENROLLMENTS:   'lms_enrollments',
+  PROGRESS:      'lms_progress',
+  SESSION:       'lms_session',
+  NOTICES:       'lms_notices',
+  ADMISSIONS:    'lms_admissions',
+  PAYMENTS:      'lms_payments',
+  EXPENSES:      'lms_expenses',
+  NOTIFICATIONS: 'lms_notifications',
+  ATTENDANCE:    'lms_attendance',
+  RATINGS:       'lms_ratings',
+  DISCUSSIONS:   'lms_discussions',
+  SCHEDULE:      'lms_schedule',
 };
 
 /* ---- Generic CRUD ---- */
@@ -82,14 +87,18 @@ function enrollStudent(studentId, courseId) {
     enrolledAt: new Date().toISOString(),
     progress: 0, status: 'active', feeStatus: 'pending'
   };
-  return dbSave(DB.ENROLLMENTS, enrollment);
+  dbSave(DB.ENROLLMENTS, enrollment);
+  if (window.sbPushEnrollment) sbPushEnrollment(enrollment);
+  return enrollment;
 }
 
 /* ---- Progress helpers ---- */
 function markLessonComplete(studentId, lessonId) {
   const existing = dbGet(DB.PROGRESS).find(p => p.studentId === studentId && p.lessonId === lessonId);
   if (existing) return;
-  dbSave(DB.PROGRESS, { id: genId(), studentId, lessonId, completed: true, completedAt: new Date().toISOString() });
+  const prog = { id: genId(), studentId, lessonId, completed: true, completedAt: new Date().toISOString() };
+  dbSave(DB.PROGRESS, prog);
+  if (window.sbPushProgress) sbPushProgress(prog);
 
   // Recalculate course progress
   const lesson = dbGetOne(DB.LESSONS, lessonId);
@@ -107,6 +116,7 @@ function markLessonComplete(studentId, lessonId) {
     enrollment.progress = progress;
     if (progress === 100) enrollment.status = 'completed';
     dbSave(DB.ENROLLMENTS, enrollment);
+    if (window.sbPushEnrollment) sbPushEnrollment(enrollment);
   }
 }
 function isLessonCompleted(studentId, lessonId) {
@@ -122,7 +132,9 @@ function saveQuizResult(studentId, quizId, score, total, answers) {
     score, total, percentage: Math.round((score / total) * 100),
     answers, submittedAt: new Date().toISOString()
   };
-  return dbSave(DB.SUBMISSIONS, sub);
+  dbSave(DB.SUBMISSIONS, sub);
+  if (window.sbPushSubmission) sbPushSubmission(sub);
+  return sub;
 }
 function getQuizResult(studentId, quizId) {
   return dbGet(DB.SUBMISSIONS).find(s => s.type === 'quiz' && s.studentId === studentId && s.quizId === quizId) || null;
@@ -131,15 +143,122 @@ function getQuizResult(studentId, quizId) {
 /* ---- Assignment Submissions ---- */
 function submitAssignment(studentId, assignmentId, answer) {
   const existing = dbGet(DB.SUBMISSIONS).find(s => s.type === 'assignment' && s.studentId === studentId && s.assignmentId === assignmentId);
-  if (existing) { existing.answer = answer; existing.submittedAt = new Date().toISOString(); return dbSave(DB.SUBMISSIONS, existing); }
+  if (existing) {
+    existing.answer = answer; existing.submittedAt = new Date().toISOString();
+    dbSave(DB.SUBMISSIONS, existing);
+    if (window.sbPushSubmission) sbPushSubmission(existing);
+    return existing;
+  }
   const sub = { id: genId(), type: 'assignment', assignmentId, studentId, answer, marks: null, feedback: '', submittedAt: new Date().toISOString() };
-  return dbSave(DB.SUBMISSIONS, sub);
+  dbSave(DB.SUBMISSIONS, sub);
+  if (window.sbPushSubmission) sbPushSubmission(sub);
+  return sub;
 }
 function gradeAssignment(submissionId, marks, feedback) {
   const sub = dbGetOne(DB.SUBMISSIONS, submissionId);
   if (!sub) return null;
   sub.marks = marks; sub.feedback = feedback; sub.gradedAt = new Date().toISOString();
-  return dbSave(DB.SUBMISSIONS, sub);
+  dbSave(DB.SUBMISSIONS, sub);
+  if (window.sbPushSubmission) sbPushSubmission(sub);
+  return sub;
+}
+
+/* ---- Notification helpers ---- */
+function addNotification(userId, message, type = 'info', link = '') {
+  const notif = { id: genId(), userId, message, type, link, read: false, createdAt: new Date().toISOString() };
+  dbSave(DB.NOTIFICATIONS, notif);
+  return notif;
+}
+function getNotifications(userId) {
+  return dbGet(DB.NOTIFICATIONS).filter(n => n.userId === userId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+function markNotificationRead(id) {
+  const n = dbGetOne(DB.NOTIFICATIONS, id);
+  if (n) { n.read = true; dbSave(DB.NOTIFICATIONS, n); }
+}
+function markAllNotificationsRead(userId) {
+  const list = dbGet(DB.NOTIFICATIONS).map(n => n.userId === userId ? { ...n, read: true } : n);
+  dbSet(DB.NOTIFICATIONS, list);
+}
+function getUnreadCount(userId) {
+  return dbGet(DB.NOTIFICATIONS).filter(n => n.userId === userId && !n.read).length;
+}
+
+/* ---- Attendance helpers ---- */
+function saveAttendance(courseId, date, records) {
+  // records = [{ studentId, status: 'present'|'absent'|'late' }]
+  const id = `att_${courseId}_${date}`;
+  const att = { id, courseId, date, records, markedAt: new Date().toISOString() };
+  dbSave(DB.ATTENDANCE, att);
+  return att;
+}
+function getAttendance(courseId, date) {
+  return dbGetOne(DB.ATTENDANCE, `att_${courseId}_${date}`);
+}
+function getStudentAttendance(studentId, courseId) {
+  return dbGet(DB.ATTENDANCE)
+    .filter(a => a.courseId === courseId)
+    .map(a => ({ date: a.date, record: a.records.find(r => r.studentId === studentId) }))
+    .filter(a => a.record);
+}
+function getCourseAttendanceSummary(courseId) {
+  const all = dbGet(DB.ATTENDANCE).filter(a => a.courseId === courseId);
+  const students = getUsersByRole('student');
+  return students.map(s => {
+    const records = all.flatMap(a => a.records.filter(r => r.studentId === s.id));
+    const present = records.filter(r => r.status === 'present').length;
+    const late    = records.filter(r => r.status === 'late').length;
+    const total   = records.length;
+    return { student: s, present, late, absent: total - present - late, total };
+  }).filter(x => x.total > 0);
+}
+
+/* ---- Rating helpers ---- */
+function saveCourseRating(studentId, courseId, stars, review) {
+  const id = `rate_${studentId}_${courseId}`;
+  const rating = { id, studentId, courseId, stars, review, createdAt: new Date().toISOString() };
+  dbSave(DB.RATINGS, rating);
+  return rating;
+}
+function getCourseRatings(courseId) {
+  return dbGet(DB.RATINGS).filter(r => r.courseId === courseId);
+}
+function getStudentRating(studentId, courseId) {
+  return dbGetOne(DB.RATINGS, `rate_${studentId}_${courseId}`);
+}
+function getCourseAvgRating(courseId) {
+  const ratings = getCourseRatings(courseId);
+  if (!ratings.length) return 0;
+  return (ratings.reduce((s, r) => s + r.stars, 0) / ratings.length).toFixed(1);
+}
+
+/* ---- Discussion helpers ---- */
+function addDiscussionPost(lessonId, userId, text, parentId = null) {
+  const post = { id: genId(), lessonId, userId, text, parentId, likes: 0, createdAt: new Date().toISOString() };
+  dbSave(DB.DISCUSSIONS, post);
+  return post;
+}
+function getLessonDiscussion(lessonId) {
+  return dbGet(DB.DISCUSSIONS).filter(d => d.lessonId === lessonId).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+}
+function likeDiscussionPost(postId) {
+  const post = dbGetOne(DB.DISCUSSIONS, postId);
+  if (post) { post.likes = (post.likes || 0) + 1; dbSave(DB.DISCUSSIONS, post); }
+}
+
+/* ---- Schedule helpers ---- */
+function saveScheduleSession(session) {
+  if (!session.id) session.id = genId();
+  dbSave(DB.SCHEDULE, session);
+  return session;
+}
+function getScheduleSessions(courseId) {
+  return courseId
+    ? dbGet(DB.SCHEDULE).filter(s => s.courseId === courseId)
+    : dbGet(DB.SCHEDULE);
+}
+function deleteScheduleSession(id) {
+  dbDelete(DB.SCHEDULE, id);
 }
 
 /* =============================================
@@ -183,7 +302,7 @@ function initSeedData() {
       description: 'A comprehensive training program covering the philosophy, principles, and practical implementation of the Montessori method for early childhood education. Become a certified Montessori educator.',
       duration: '6 Months', level: 'Advanced', icon: '🏫', color: '#1a7a7a',
       modules: ['Montessori Philosophy & Principles', 'Prepared Environment', 'Sensorial Materials', 'Language & Literacy', 'Mathematics in Montessori', 'Practical Life Activities'],
-      maxStudents: 25, fee: 15000, createdAt: '2024-01-15T00:00:00Z'
+      maxStudents: 25, fee: 25000, createdAt: '2024-01-15T00:00:00Z'
     },
     {
       id: 'c2', title: 'Spoken English',
@@ -231,53 +350,118 @@ function initSeedData() {
     { id: 'l11', courseId: 'c4', module: 'Child Development Stages', title: "Piaget's Stages of Cognitive Development", type: 'video', url: 'https://www.youtube.com/embed/TRF27F2bn-A', duration: '22 min', order: 1 },
     { id: 'l12', courseId: 'c4', module: 'Cognitive Development', title: 'Understanding How Children Learn', type: 'text', content: '<h3>How Children Learn</h3><p>Understanding the cognitive processes in children helps educators create more effective learning experiences.</p><h4>Key Learning Theories:</h4><ul><li><strong>Constructivism (Piaget)</strong>: Children build knowledge through active exploration</li><li><strong>Social Learning (Vygotsky)</strong>: Learning happens through social interaction and the Zone of Proximal Development (ZPD)</li><li><strong>Behaviorism (Skinner)</strong>: Learning through reinforcement and reward</li><li><strong>Multiple Intelligences (Gardner)</strong>: 8 types of intelligence beyond IQ</li></ul><h4>Practical Implications:</h4><p>Use hands-on activities, collaborative projects, positive reinforcement, and varied teaching strategies to accommodate different learning styles.</p>', duration: '25 min', order: 2 },
     { id: 'l13', courseId: 'c4', module: 'Emotional & Social Development', title: 'Emotional Intelligence in Children', type: 'video', url: 'https://www.youtube.com/embed/Y7m9eNoB3NU', duration: '18 min', order: 3 },
+    // Course Books (PDF only)
+    { id: 'lb1', courseId: 'c1', module: 'Course Books', title: 'AMT-001: Pre-School Management', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 10, pdf: 'assets/pdfs/amt-001-preschool-management.pdf' },
+    { id: 'lb2', courseId: 'c4', module: 'Course Books', title: 'AMT-002: Foundations of Educational Psychology', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 10, pdf: 'assets/pdfs/amt-002-educational-psychology.pdf' },
+    { id: 'lb3', courseId: 'c1', module: 'Course Books', title: 'AMT-003: Montessori Philosophy and Method', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 11, pdf: 'assets/pdfs/amt-003-montessori-philosophy.pdf' },
+    { id: 'lb4', courseId: 'c1', module: 'Course Books', title: 'AMT-004: Pre-School Education', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 12, pdf: 'assets/pdfs/amt-004-preschool-education.pdf' },
   ];
   dbSet(DB.LESSONS, lessons);
 
   /* --- Quizzes --- */
   const quizzes = [
     {
-      id: 'q1', courseId: 'c1', title: 'Montessori Fundamentals Quiz',
-      timeLimit: 15, passMark: 60,
+      id: 'q1', courseId: 'c1', title: 'Advance Montessori Teacher Training — Assessment',
+      timeLimit: 30, passMark: 60,
       questions: [
-        { id: 'qq1', text: 'Who developed the Montessori method of education?', options: ['Friedrich Froebel', 'Maria Montessori', 'Jean Piaget', 'John Dewey'], correct: 1 },
-        { id: 'qq2', text: 'What age range is considered the "absorbent mind" period?', options: ['0-3 years only', '3-6 years only', '0-6 years', '6-12 years'], correct: 2 },
-        { id: 'qq3', text: 'In the Montessori method, what is the primary role of the teacher?', options: ['Direct instructor and lecturer', 'Guide and observer', 'Disciplinarian', 'Entertainer'], correct: 1 },
-        { id: 'qq4', text: 'What are "sensitive periods" in Montessori education?', options: ['Times when children are emotionally sensitive', 'Windows of opportunity for optimal learning', 'Periods when children need more sleep', 'Times for sensory play only'], correct: 1 },
-        { id: 'qq5', text: 'Which of these is a key characteristic of the Montessori prepared environment?', options: ['Teacher-centered layout', 'Fixed desks facing the board', 'Child-sized, accessible materials', 'Lots of colorful decorations'], correct: 2 },
+        { id: 'qq1',  text: 'Who developed the Montessori method of education?', options: ['Friedrich Froebel', 'Maria Montessori', 'Jean Piaget', 'John Dewey'], correct: 1 },
+        { id: 'qq2',  text: 'In which year was Dr. Maria Montessori born?', options: ['1860', '1870', '1880', '1890'], correct: 1 },
+        { id: 'qq3',  text: 'What age range is considered the "absorbent mind" period?', options: ['0-3 years only', '3-6 years only', '0-6 years', '6-12 years'], correct: 2 },
+        { id: 'qq4',  text: 'What are "sensitive periods" in Montessori education?', options: ['Times when children are emotionally sensitive', 'Windows of opportunity for optimal learning', 'Periods when children need more sleep', 'Times for sensory play only'], correct: 1 },
+        { id: 'qq5',  text: 'In the Montessori method, what is the primary role of the teacher?', options: ['Direct instructor and lecturer', 'Guide and observer', 'Disciplinarian', 'Entertainer'], correct: 1 },
+        { id: 'qq6',  text: 'Which of these is a key characteristic of the Montessori prepared environment?', options: ['Teacher-centered layout', 'Fixed desks facing the board', 'Child-sized, accessible materials', 'Lots of colourful wall decorations'], correct: 2 },
+        { id: 'qq7',  text: 'What does "auto-education" mean in Montessori philosophy?', options: ['Learning through technology', 'Children naturally desire to learn and teach themselves', 'Self-discipline through punishment', 'Memorising lessons independently'], correct: 1 },
+        { id: 'qq8',  text: 'Which area is NOT typically part of a Montessori classroom?', options: ['Practical Life', 'Sensorial', 'Competitive sports arena', 'Language'], correct: 2 },
+        { id: 'qq9',  text: 'The sensitive period for ORDER in children is strongest during:', options: ['Birth to 6 years', '6 to 9 years', '9 to 12 years', '12 to 15 years'], correct: 0 },
+        { id: 'qq10', text: 'What is the purpose of Montessori sensorial materials?', options: ['Teach children to read', 'Refine and develop the five senses', 'Improve mathematics skills', 'Develop social skills'], correct: 1 },
+        { id: 'qq11', text: 'The "Three Period Lesson" in Montessori is used to:', options: ['Plan a day in three sections', 'Introduce, recognise and recall new vocabulary/concepts', 'Divide children into three ability groups', 'Teach three subjects simultaneously'], correct: 1 },
+        { id: 'qq12', text: 'In a Montessori pre-school, mixed age grouping means:', options: ['Children of different nationalities', 'Children aged 3-6 learn together in one classroom', 'Boys and girls are mixed', 'Different subjects taught at the same time'], correct: 1 },
+        { id: 'qq13', text: 'Which principle states that children pass through stages where they are highly sensitive to certain stimuli?', options: ['Prepared Environment', 'Absorbent Mind', 'Sensitive Periods', 'Freedom within Limits'], correct: 2 },
+        { id: 'qq14', text: 'What is the correct term for the Montessori concept of "freedom within limits"?', options: ['Children do whatever they want', 'Children choose activities within a structured, respectful boundary', 'No rules in the classroom', 'Only teachers decide activities'], correct: 1 },
+        { id: 'qq15', text: 'Practical Life activities in Montessori help children develop:', options: ['Advanced mathematics', 'Independence, coordination and concentration', 'Reading and writing only', 'Computer skills'], correct: 1 },
+        { id: 'qq16', text: 'The Montessori Pink Tower is primarily a __ material.', options: ['Language', 'Mathematics', 'Sensorial', 'Practical Life'], correct: 2 },
+        { id: 'qq17', text: 'According to Montessori, what should a teacher do when a child is deeply concentrating?', options: ['Interrupt to check understanding', 'Praise loudly to encourage others', 'Observe quietly and not disturb', 'Move the child to a group activity'], correct: 2 },
+        { id: 'qq18', text: 'Which document outlines the daily management and administration of a Montessori pre-school?', options: ['Lesson plan', 'School prospectus', 'Pre-school management handbook', 'Observation journal'], correct: 2 },
+        { id: 'qq19', text: 'Parent–teacher communication in a Montessori school is best described as:', options: ['Formal reports twice a year', 'Ongoing, collaborative partnership', 'Only when a problem arises', 'Not encouraged'], correct: 1 },
+        { id: 'qq20', text: 'Which of the following best describes "normalisation" in Montessori?', options: ['Teaching children to behave normally', 'A state of deep focus, self-discipline and joy in work', 'Giving all children the same tasks', 'Standardised test performance'], correct: 1 },
       ]
     },
     {
-      id: 'q2', courseId: 'c2', title: 'Spoken English Assessment',
-      timeLimit: 10, passMark: 60,
+      id: 'q2', courseId: 'c2', title: 'Spoken English — Assessment',
+      timeLimit: 30, passMark: 60,
       questions: [
-        { id: 'qq6', text: 'Which sentence uses correct subject-verb agreement?', options: ['The children was playing.', 'The children were playing.', 'The children is playing.', 'The children be playing.'], correct: 1 },
-        { id: 'qq7', text: 'What is the correct form? "She ___ to school every day."', options: ['go', 'goes', 'going', 'gone'], correct: 1 },
-        { id: 'qq8', text: 'Which word is a conjunction?', options: ['Quickly', 'Beautiful', 'Because', 'Table'], correct: 2 },
-        { id: 'qq9', text: 'Rising intonation is typically used for:', options: ['Statements', 'Yes/No questions', 'Commands', 'Exclamations'], correct: 1 },
-        { id: 'qq10', text: 'Which is an example of active voice?', options: ['The book was read by Sara.', 'Sara read the book.', 'The book is being read.', 'The book had been read.'], correct: 1 },
+        { id: 'qq21', text: 'Which sentence uses correct subject-verb agreement?', options: ['The children was playing.', 'The children were playing.', 'The children is playing.', 'The children be playing.'], correct: 1 },
+        { id: 'qq22', text: 'What is the correct form? "She ___ to school every day."', options: ['go', 'goes', 'going', 'gone'], correct: 1 },
+        { id: 'qq23', text: 'Which word is a conjunction?', options: ['Quickly', 'Beautiful', 'Because', 'Table'], correct: 2 },
+        { id: 'qq24', text: 'Rising intonation is typically used for:', options: ['Statements', 'Yes/No questions', 'Commands', 'Exclamations'], correct: 1 },
+        { id: 'qq25', text: 'Which is an example of active voice?', options: ['The book was read by Sara.', 'Sara read the book.', 'The book is being read.', 'The book had been read.'], correct: 1 },
+        { id: 'qq26', text: 'Which tense is used for an action happening right now?', options: ['Simple Past', 'Present Perfect', 'Present Continuous', 'Past Continuous'], correct: 2 },
+        { id: 'qq27', text: 'What is a "diphthong"?', options: ['A silent letter', 'A combination of two vowel sounds in one syllable', 'A type of consonant cluster', 'A punctuation mark'], correct: 1 },
+        { id: 'qq28', text: 'Which sentence is grammatically correct?', options: ['I am agree with you.', 'I agree with you.', 'I agreeing with you.', 'I does agree with you.'], correct: 1 },
+        { id: 'qq29', text: 'The word "beautiful" is an example of a/an:', options: ['Noun', 'Verb', 'Adjective', 'Adverb'], correct: 2 },
+        { id: 'qq30', text: 'Classroom English for teachers includes phrases like:', options: ['"Open your books to page 10."', '"Ye karo."', '"Go home now."', '"I do not know."'], correct: 0 },
+        { id: 'qq31', text: 'Which is the correct question form?', options: ['Where you are going?', 'Where are you going?', 'Where going are you?', 'You are going where?'], correct: 1 },
+        { id: 'qq32', text: 'Stress-timed rhythm means:', options: ['All syllables take equal time', 'Stressed syllables occur at regular intervals', 'Only nouns are stressed', 'Verbs are never stressed'], correct: 1 },
+        { id: 'qq33', text: 'Which is the best way to improve English pronunciation?', options: ['Only reading silently', 'Recording yourself and comparing with native speakers', 'Memorising dictionary definitions', 'Avoiding difficult words'], correct: 1 },
+        { id: 'qq34', text: '"I have been teaching for five years." This sentence is in:', options: ['Simple Present', 'Present Perfect Continuous', 'Past Perfect', 'Future Continuous'], correct: 1 },
+        { id: 'qq35', text: 'Which word is spelled correctly?', options: ['Recieve', 'Recive', 'Receive', 'Receeve'], correct: 2 },
+        { id: 'qq36', text: 'The plural of "child" is:', options: ['Childs', 'Childes', 'Children', 'Childrens'], correct: 2 },
+        { id: 'qq37', text: 'Which sentence uses the correct article?', options: ['She is a honest woman.', 'She is an honest woman.', 'She is the honest woman.', 'She is honest woman.'], correct: 1 },
+        { id: 'qq38', text: 'To speak fluently means:', options: ['Speaking very loudly', 'Speaking smoothly and naturally without long pauses', 'Using very complex vocabulary', 'Speaking with a foreign accent'], correct: 1 },
+        { id: 'qq39', text: '"Could you please repeat that?" is an example of:', options: ['A command', 'A polite request', 'A statement', 'A greeting'], correct: 1 },
+        { id: 'qq40', text: 'Which is NOT a good strategy for building conversation skills?', options: ['Practising with a partner', 'Listening actively', 'Avoiding eye contact', 'Using open-ended questions'], correct: 2 },
       ]
     },
     {
-      id: 'q3', courseId: 'c3', title: 'Phonics Knowledge Check',
-      timeLimit: 10, passMark: 60,
+      id: 'q3', courseId: 'c3', title: 'Phonics Training — Assessment',
+      timeLimit: 30, passMark: 60,
       questions: [
-        { id: 'qq11', text: 'Phonemic awareness is the ability to:', options: ['Recognize letters of the alphabet', 'Hear and manipulate sounds in spoken words', 'Read words silently', 'Write sentences correctly'], correct: 1 },
-        { id: 'qq12', text: 'Which word has a short vowel sound?', options: ['cake', 'bite', 'cat', 'hope'], correct: 2 },
-        { id: 'qq13', text: 'Blending means:', options: ['Breaking words into sounds', 'Putting sounds together to form words', 'Rhyming words', 'Spelling words'], correct: 1 },
-        { id: 'qq14', text: 'The "ch" in "chair" is an example of:', options: ['A single phoneme', 'A digraph', 'A blend', 'A diphthong'], correct: 1 },
-        { id: 'qq15', text: 'Which approach is BEST for phonics instruction?', options: ['Memorizing whole words only', 'Systematic, sequential phonics teaching', 'Random letter introduction', 'Visual-only methods'], correct: 1 },
+        { id: 'qq41', text: 'Phonemic awareness is the ability to:', options: ['Recognize letters of the alphabet', 'Hear and manipulate sounds in spoken words', 'Read words silently', 'Write sentences correctly'], correct: 1 },
+        { id: 'qq42', text: 'Which word has a short vowel sound?', options: ['cake', 'bite', 'cat', 'hope'], correct: 2 },
+        { id: 'qq43', text: 'Blending means:', options: ['Breaking words into sounds', 'Putting sounds together to form words', 'Rhyming words', 'Spelling words'], correct: 1 },
+        { id: 'qq44', text: 'The "ch" in "chair" is an example of:', options: ['A single phoneme', 'A digraph', 'A blend', 'A diphthong'], correct: 1 },
+        { id: 'qq45', text: 'Which approach is BEST for phonics instruction?', options: ['Memorising whole words only', 'Systematic, sequential phonics teaching', 'Random letter introduction', 'Visual-only methods'], correct: 1 },
+        { id: 'qq46', text: 'How many phonemes (sounds) does the word "ship" have?', options: ['2', '3', '4', '5'], correct: 1 },
+        { id: 'qq47', text: 'Segmenting means:', options: ['Joining sounds to make a word', 'Breaking a word into its individual sounds', 'Counting syllables', 'Identifying rhyming words'], correct: 1 },
+        { id: 'qq48', text: 'Which letters make the "f" sound in the word "phone"?', options: ['p and h', 'Only p', 'Only h', 'f and e'], correct: 0 },
+        { id: 'qq49', text: 'The "silent e" rule means:', options: ['The letter e is never pronounced', 'A final e makes the preceding vowel say its long sound', 'All words ending in e are silent', 'The e changes the consonant sound'], correct: 1 },
+        { id: 'qq50', text: 'Which is a CVC (consonant-vowel-consonant) word?', options: ['street', 'play', 'cat', 'bright'], correct: 2 },
+        { id: 'qq51', text: 'Sandpaper letters are used in phonics to provide:', options: ['Visual learning only', 'Tactile (touch) learning of letter shapes and sounds', 'Auditory learning through songs', 'Colour-based learning'], correct: 1 },
+        { id: 'qq52', text: 'Which is an example of a consonant blend?', options: ['sh', 'ch', 'th', 'st'], correct: 3 },
+        { id: 'qq53', text: 'The "oa" in "boat" is an example of:', options: ['A consonant digraph', 'A vowel digraph', 'A blend', 'A silent letter'], correct: 1 },
+        { id: 'qq54', text: 'Which sequence is recommended when introducing letters to young learners?', options: ['A to Z in alphabetical order', 'Start with high-frequency letters like s, a, t, i, p, n', 'Start with capital letters', 'Start with vowels only'], correct: 1 },
+        { id: 'qq55', text: 'Rhyming helps children develop:', options: ['Mathematical thinking', 'Phonological awareness', 'Writing speed', 'Social skills'], correct: 1 },
+        { id: 'qq56', text: 'How many syllables does the word "important" have?', options: ['2', '3', '4', '5'], correct: 1 },
+        { id: 'qq57', text: 'Which activity best supports phonemic awareness in young children?', options: ['Copying sentences', 'Singing songs with rhymes and word play', 'Reading silently', 'Memorising spelling lists'], correct: 1 },
+        { id: 'qq58', text: 'The term "decodable text" refers to:', options: ['Encrypted secret messages', 'Books where most words can be sounded out using learned phonics rules', 'Picture-only books', 'Stories above the child\'s reading level'], correct: 1 },
+        { id: 'qq59', text: 'Which is a long vowel sound?', options: ['The "a" in "cat"', 'The "i" in "sit"', 'The "o" in "note"', 'The "u" in "cup"'], correct: 2 },
+        { id: 'qq60', text: 'Multisensory phonics teaching means:', options: ['Teaching through sight only', 'Using seeing, hearing and touch together to reinforce learning', 'Using only audio recordings', 'Teaching through games only'], correct: 1 },
       ]
     },
     {
-      id: 'q4', courseId: 'c4', title: 'Child Psychology Basics',
-      timeLimit: 15, passMark: 60,
+      id: 'q4', courseId: 'c4', title: 'Child Psychology — Assessment',
+      timeLimit: 30, passMark: 60,
       questions: [
-        { id: 'qq16', text: "According to Piaget, what stage do most preschool children (ages 2-7) belong to?", options: ['Sensorimotor', 'Preoperational', 'Concrete Operational', 'Formal Operational'], correct: 1 },
-        { id: 'qq17', text: "Vygotsky's 'Zone of Proximal Development' (ZPD) refers to:", options: ['What a child can do alone', 'What a child cannot do even with help', 'The gap between what a child can do alone vs. with guidance', 'A physical development stage'], correct: 2 },
-        { id: 'qq18', text: 'Which theorist proposed 8 types of multiple intelligences?', options: ['Sigmund Freud', 'Erik Erikson', 'Howard Gardner', 'B.F. Skinner'], correct: 2 },
-        { id: 'qq19', text: 'Attachment theory was primarily developed by:', options: ['Jean Piaget', 'John Bowlby', 'Lev Vygotsky', 'Abraham Maslow'], correct: 1 },
-        { id: 'qq20', text: 'Which is a sign of healthy social-emotional development in a 4-year-old?', options: ['Preferring to always play alone', 'Showing empathy and sharing toys', 'Having no emotional reactions', 'Following rules perfectly'], correct: 1 },
+        { id: 'qq61', text: "According to Piaget, what stage do most pre-school children (ages 2-7) belong to?", options: ['Sensorimotor', 'Preoperational', 'Concrete Operational', 'Formal Operational'], correct: 1 },
+        { id: 'qq62', text: "Vygotsky's Zone of Proximal Development (ZPD) refers to:", options: ['What a child can do alone', 'What a child cannot do even with help', 'The gap between what a child can do alone vs. with guidance', 'A physical development stage'], correct: 2 },
+        { id: 'qq63', text: 'Which theorist proposed 8 types of multiple intelligences?', options: ['Sigmund Freud', 'Erik Erikson', 'Howard Gardner', 'B.F. Skinner'], correct: 2 },
+        { id: 'qq64', text: 'Attachment theory was primarily developed by:', options: ['Jean Piaget', 'John Bowlby', 'Lev Vygotsky', 'Abraham Maslow'], correct: 1 },
+        { id: 'qq65', text: 'Which is a sign of healthy social-emotional development in a 4-year-old?', options: ['Preferring to always play alone', 'Showing empathy and sharing toys', 'Having no emotional reactions', 'Following rules perfectly'], correct: 1 },
+        { id: 'qq66', text: 'Erik Erikson\'s theory focuses on:', options: ['Cognitive stages of development', 'Psychosocial stages across the lifespan', 'Language acquisition', 'Behavioural conditioning'], correct: 1 },
+        { id: 'qq67', text: 'Which of the following is an example of fine motor development in a 3-year-old?', options: ['Running and jumping', 'Holding a pencil and drawing', 'Climbing stairs', 'Kicking a ball'], correct: 1 },
+        { id: 'qq68', text: 'Scaffolding in education (based on Vygotsky) means:', options: ['Building physical structures in school', 'Providing temporary support to help a child reach the next level', 'Testing children frequently', 'Letting children learn entirely on their own'], correct: 1 },
+        { id: 'qq69', text: 'Which behaviour management strategy is most effective for young children?', options: ['Punishment and isolation', 'Positive reinforcement and praise', 'Ignoring all behaviour', 'Strict physical discipline'], correct: 1 },
+        { id: 'qq70', text: 'A child with ADHD (Attention Deficit Hyperactivity Disorder) typically shows:', options: ['Extreme shyness and social withdrawal', 'Difficulty concentrating, impulsivity and hyperactivity', 'Complete disinterest in all activities', 'Exceptional memory for all subjects'], correct: 1 },
+        { id: 'qq71', text: 'According to Maslow\'s Hierarchy of Needs, which need must be met first?', options: ['Self-esteem', 'Love and belonging', 'Physiological needs (food, water, shelter)', 'Self-actualisation'], correct: 2 },
+        { id: 'qq72', text: 'The Sensorimotor stage (Piaget) covers the age range of:', options: ['0-2 years', '2-7 years', '7-11 years', '12+ years'], correct: 0 },
+        { id: 'qq73', text: 'Object permanence is the understanding that:', options: ['Objects have weight', 'Objects continue to exist even when out of sight', 'Objects can be dangerous', 'Objects have names'], correct: 1 },
+        { id: 'qq74', text: 'Which is an appropriate strategy to support a child with learning difficulties?', options: ['Excluding them from group activities', 'Providing individualised support and modified tasks', 'Expecting them to keep up with peers without support', 'Reducing their school hours'], correct: 1 },
+        { id: 'qq75', text: 'Play is important for child development because:', options: ['It wastes learning time', 'It develops cognitive, social, emotional and physical skills simultaneously', 'It only develops physical skills', 'It is a reward for good behaviour'], correct: 1 },
+        { id: 'qq76', text: 'Which theorist introduced the concept of "classical conditioning"?', options: ['B.F. Skinner', 'Ivan Pavlov', 'Jean Piaget', 'Abraham Maslow'], correct: 1 },
+        { id: 'qq77', text: 'Language development in children is fastest during:', options: ['0-5 years', '6-10 years', '10-15 years', '15-18 years'], correct: 0 },
+        { id: 'qq78', text: 'A child who is described as having "secure attachment" will:', options: ['Refuse to separate from parents at all', 'Explore confidently knowing their caregiver is available', 'Show no attachment to any adult', 'Be aggressive towards other children'], correct: 1 },
+        { id: 'qq79', text: 'Which of the following describes parallel play?', options: ['Two children playing the same game together', 'Children playing near each other but independently', 'A child playing alone in isolation', 'A teacher directing a group game'], correct: 1 },
+        { id: 'qq80', text: 'The goal of child psychology in education is to:', options: ['Diagnose and label all children', 'Understand child behaviour and development to create better learning experiences', 'Eliminate all classroom problems', 'Replace parents in the child\'s life'], correct: 1 },
       ]
     }
   ];
@@ -362,3 +546,81 @@ function initSeedData() {
 
 // Auto-init on load
 initSeedData();
+
+/* ---- Migration: upgrade quizzes to 20-question assessments ---- */
+(function migrateQuizzes() {
+  const quizzes = dbGet(DB.QUIZZES);
+  const q1 = quizzes.find(q => q.id === 'q1');
+  if (q1 && q1.questions.length < 20) {
+    // Replace all quizzes with full assessments — reload seed quizzes
+    localStorage.removeItem('lms_seeded');
+    const keep = { users: localStorage.getItem('lms_users'), enrollments: localStorage.getItem('lms_enrollments'), payments: localStorage.getItem('lms_payments'), expenses: localStorage.getItem('lms_expenses'), progress: localStorage.getItem('lms_progress'), submissions: localStorage.getItem('lms_submissions') };
+    initSeedData();
+    Object.entries(keep).forEach(([k, v]) => { if (v) localStorage.setItem('lms_' + k.replace('lms_',''), v); });
+  }
+})();
+
+/* ---- Migration: update Montessori course fee to 25000 ---- */
+(function migrateCourseFees() {
+  const courses = dbGet(DB.COURSES);
+  const c1 = courses.find(c => c.id === 'c1');
+  if (c1 && c1.fee !== 25000) {
+    c1.fee = 25000;
+    localStorage.setItem('lms_courses', JSON.stringify(courses));
+  }
+})();
+
+/* ---- Migration: add course books if not present ---- */
+(function migrateBooks() {
+  const books = [
+    { id: 'lb1', courseId: 'c1', module: 'Course Books', title: 'AMT-001: Pre-School Management', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 10, pdf: 'assets/pdfs/amt-001-preschool-management.pdf' },
+    { id: 'lb2', courseId: 'c4', module: 'Course Books', title: 'AMT-002: Foundations of Educational Psychology', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 10, pdf: 'assets/pdfs/amt-002-educational-psychology.pdf' },
+    { id: 'lb3', courseId: 'c1', module: 'Course Books', title: 'AMT-003: Montessori Philosophy and Method', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 11, pdf: 'assets/pdfs/amt-003-montessori-philosophy.pdf' },
+    { id: 'lb4', courseId: 'c1', module: 'Course Books', title: 'AMT-004: Pre-School Education', type: 'text', content: '<p>Download the full course book below.</p>', duration: '', order: 12, pdf: 'assets/pdfs/amt-004-preschool-education.pdf' },
+  ];
+  const existing = dbGet(DB.LESSONS).map(l => l.id);
+  books.forEach(b => { if (!existing.includes(b.id)) dbSave(DB.LESSONS, b); });
+})();
+
+/* ---- Migration: seed Montessori class recordings ---- */
+(function migrateRecordings() {
+  const existing = JSON.parse(localStorage.getItem('lms_recordings') || '[]');
+  // Check if our seeded recordings are already present
+  if (existing.some(r => r.id === 'mr1')) return;
+
+  const seed = [
+    { id:'mr1',  courseId:'c1', title:'Montessori 1',  date:'2025-05-17', driveUrl:'https://drive.google.com/file/d/1e6iXW8abfIVp7nOzP-MfdQR6FkPxQWzP/view', description:'Montessori Teacher Training — Session 1' },
+    { id:'mr2',  courseId:'c1', title:'Montessori 2',  date:'2025-05-31', driveUrl:'https://drive.google.com/file/d/1TTYAQKNV4QztyRvpHz9ZMdXNLgJ4Mu2N/view', description:'Montessori Teacher Training — Session 2' },
+    { id:'mr3',  courseId:'c1', title:'Montessori 3',  date:'2025-06-10', driveUrl:'https://drive.google.com/file/d/1r7yZB47ouL0KrRcw_Tekgq5_KhE2sX6j/view', description:'Montessori Teacher Training — Session 3' },
+    { id:'mr4',  courseId:'c1', title:'Montessori 4',  date:'2025-10-07', driveUrl:'https://drive.google.com/file/d/117XDVJBnvSCTgg-SZPqoRZHTKraLRrW4/view', description:'Montessori Teacher Training — Session 4' },
+    { id:'mr5',  courseId:'c1', title:'Montessori 5',  date:'2025-10-07', driveUrl:'https://drive.google.com/file/d/16ISoJskccyoKvK9cPvFU5TfpT2kVnQdK/view', description:'Montessori Teacher Training — Session 5' },
+    { id:'mr6',  courseId:'c1', title:'Montessori 6',  date:'2025-10-18', driveUrl:'https://drive.google.com/file/d/1Bfpr2PpV7QCTfWVx14qdO0dE4Wj7ewgy/view', description:'Montessori Teacher Training — Session 6' },
+    { id:'mr7',  courseId:'c1', title:'Montessori 7',  date:'2025-10-21', driveUrl:'https://drive.google.com/file/d/1hRFvvMHVmgkgqYDPwOnk_4ruH_zUuNm9/view', description:'Montessori Teacher Training — Session 7' },
+    { id:'mr8',  courseId:'c1', title:'Montessori 8',  date:'2025-10-25', driveUrl:'https://drive.google.com/file/d/1XhWDlmY9CpzPdrNOVXFFee841uPnmHI6/view', description:'Montessori Teacher Training — Session 8' },
+    { id:'mr9',  courseId:'c1', title:'Montessori 9',  date:'2025-10-28', driveUrl:'https://drive.google.com/file/d/1bbg4G_skgWycpO6mtoAoR41stf8R5XNB/view', description:'Montessori Teacher Training — Session 9' },
+    { id:'mr10', courseId:'c1', title:'Montessori 10', date:'2025-11-01', driveUrl:'https://drive.google.com/file/d/1_tqt1wBVZf4pmWRopAGAcVhJ84HutKjz/view', description:'Montessori Teacher Training — Session 10' },
+    { id:'mr11', courseId:'c1', title:'Montessori 11', date:'2025-11-08', driveUrl:'https://drive.google.com/file/d/1UeyYhouf6zvkGh0KhZ5OUzsnYHYxqeVz/view', description:'Montessori Teacher Training — Session 11' },
+    { id:'mr12', courseId:'c1', title:'Montessori 12', date:'2025-11-11', driveUrl:'https://drive.google.com/file/d/1kXEWaZcZ63vjG1LUEH-2qbf9wfWaDKIZ/view', description:'Montessori Teacher Training — Session 12' },
+    { id:'mr13', courseId:'c1', title:'Montessori 13', date:'2025-11-18', driveUrl:'https://drive.google.com/file/d/16lZrwSZ1_Re_m0CBViNjp3I9Ub-_Waix/view', description:'Montessori Teacher Training — Session 13' },
+    { id:'mr14', courseId:'c1', title:'Montessori 14', date:'2025-11-22', driveUrl:'https://drive.google.com/file/d/1BpIvZFfvmQbuCMuqiYbVk7zpqqmNHKt1/view', description:'Montessori Teacher Training — Session 14' },
+    { id:'mr15', courseId:'c1', title:'Montessori 15', date:'2025-11-23', driveUrl:'https://drive.google.com/file/d/1E0p_bMm7tbQWekdQQRakRVuIGyO1hsp0/view', description:'Montessori Teacher Training — Session 15' },
+    { id:'mr16', courseId:'c1', title:'Montessori 16', date:'2025-11-25', driveUrl:'https://drive.google.com/file/d/1ttWb3DYdy2SPIDJyqGuIen46BHrALH_K/view', description:'Montessori Teacher Training — Session 16' },
+    { id:'mr17', courseId:'c1', title:'Montessori 17', date:'2025-11-29', driveUrl:'https://drive.google.com/file/d/13ssxO57QskSV_7p2MlpYlquqph11FVnF/view', description:'Montessori Teacher Training — Session 17' },
+    { id:'mr18', courseId:'c1', title:'Montessori 18', date:'2025-12-02', driveUrl:'https://drive.google.com/file/d/1jEJNxmUb8qf5cVx20QMO1cHfhDF06_3-/view', description:'Montessori Teacher Training — Session 18' },
+    { id:'mr19', courseId:'c1', title:'Montessori 19', date:'2025-12-09', driveUrl:'https://drive.google.com/file/d/1twjBDn_cW7VYKq9n8Pz66boN6T3SGams/view', description:'Montessori Teacher Training — Session 19' },
+    { id:'mr20', courseId:'c1', title:'Montessori 20', date:'2025-12-09', driveUrl:'https://drive.google.com/file/d/1Qp5eSyxnCci6bVOQtcn0O5xWKGpehoV-/view', description:'Montessori Teacher Training — Session 20' },
+    { id:'mr21', courseId:'c1', title:'Montessori 21', date:'2025-12-16', driveUrl:'https://drive.google.com/file/d/1psZnxvUgH89WG1dpEzNwg3TndLLEhVqj/view', description:'Montessori Teacher Training — Session 21' },
+    { id:'mr22', courseId:'c1', title:'Montessori 22', date:'2025-12-20', driveUrl:'https://drive.google.com/file/d/11Jt84HlawXfKT8bPGT3CzvFsJJquLird/view', description:'Montessori Teacher Training — Session 22' },
+    { id:'mr23', courseId:'c1', title:'Montessori 23', date:'2025-12-23', driveUrl:'https://drive.google.com/file/d/1kRkXI3SSiyTuDaisY-3VXUqcpybbmJ-o/view', description:'Montessori Teacher Training — Session 23' },
+    { id:'mr24', courseId:'c1', title:'Montessori 24', date:'2025-12-27', driveUrl:'https://drive.google.com/file/d/18FohGWGxeaSF9RQpsET12IRUzsyLAuiT/view', description:'Montessori Teacher Training — Session 24' },
+    { id:'mr25', courseId:'c1', title:'Montessori 25', date:'2025-12-30', driveUrl:'https://drive.google.com/file/d/1f6xWges40ZVIyKlRkmpScMkvDeGPLSOl/view', description:'Montessori Teacher Training — Session 25' },
+    { id:'mr26', courseId:'c1', title:'Montessori 26', date:'2025-12-30', driveUrl:'https://drive.google.com/file/d/1eAxaU0VJG62WA_YU8vD47M6bUoQMhtvs/view', description:'Montessori Teacher Training — Session 26' },
+    { id:'mr27', courseId:'c1', title:'Montessori 27', date:'2026-01-06', driveUrl:'https://drive.google.com/file/d/1dHkJflmfe84RDqhfRIYLc8ikzLVU17GZ/view', description:'Montessori Teacher Training — Session 27' },
+  ];
+
+  // Merge: keep any manually added recordings, then add seeded ones that aren't already there
+  const existingIds = existing.map(r => r.id);
+  const merged = [...existing, ...seed.filter(r => !existingIds.includes(r.id))];
+  localStorage.setItem('lms_recordings', JSON.stringify(merged));
+  console.log('✅ Seeded 27 Montessori class recordings');
+})();
