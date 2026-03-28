@@ -8,6 +8,7 @@ function login(email, password, role) {
   if (!user) return { success: false, message: 'No account found with this email address.' };
   if (user.password !== password) return { success: false, message: 'Incorrect password. Please try again.' };
   if (user.role !== role) return { success: false, message: `This account is registered as a ${user.role}, not a ${role}.` };
+  if (user.isActive === false) return { success: false, message: 'Your account has been deactivated. Please contact the admin.' };
   setSession(user);
   return { success: true, user };
 }

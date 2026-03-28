@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Webinar Report — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Webinar Report</span></div>
+      <div class="header-right">
+        <button class="btn btn-primary btn-sm" id="export-btn" onclick="exportActive()">⬇️ Export Excel</button>
+        <span id="user-name" class="text-sm font-medium" style="margin-left:12px;"></span>
+      </div>
+    </header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <div>
+          <h1>Webinar Report</h1>
+          <p>Spoken English Free Webinar — 26 March 2026</p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <a href="../webinar-register.html"  target="_blank" class="btn btn-outline btn-sm">🔗 Registration Link</a>
+          <a href="../webinar-feedback.html"  target="_blank" class="btn btn-outline btn-sm">🔗 Feedback Link</a>
+        </div>
+      </div>
+
+      <!-- Share Links -->
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+        <div class="card" style="border-left:4px solid #3730a3;">
+          <div class="card-body">
+            <div class="font-semibold text-sm mb-2">📋 Share Registration Form:</div>
+            <code id="reg-link" style="font-size:0.78rem;color:#3730a3;word-break:break-all;"></code>
+            <button class="btn btn-sm btn-ghost mt-2" onclick="copyLink('reg')">📋 Copy</button>
+          </div>
+        </div>
+        <div class="card" style="border-left:4px solid #d97706;">
+          <div class="card-body">
+            <div class="font-semibold text-sm mb-2">📋 Share Feedback Form (after webinar):</div>
+            <code id="fb-link" style="font-size:0.78rem;color:#d97706;word-break:break-all;"></code>
+            <button class="btn btn-sm btn-ghost mt-2" onclick="copyLink('fb')">📋 Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-4 mb-4" id="stats-row" style="gap:var(--space-4);"></div>
+
+      <!-- Tabs -->
+      <div class="tabs mb-4">
+        <button class="tab-btn active" id="tab-reg" onclick="switchTab('reg')">📝 Registrations</button>
+        <button class="tab-btn" id="tab-fb"  onclick="switchTab('fb')">⭐ Feedback</button>
+      </div>
+
+      <!-- Registrations Table -->
+      <div id="section-reg">
+        <div class="card mb-4">
+          <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <input type="text" id="reg-search" class="form-control" style="max-width:220px;" placeholder="🔍 Search name…" oninput="renderReg()">
+            <select id="reg-gender" class="form-control" style="max-width:140px;" onchange="renderReg()">
+              <option value="">All Genders</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="clearRegFilters()">✕ Clear</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body" style="padding:0;overflow-x:auto;">
+            <table class="table" id="reg-table" style="min-width:600px;">
+              <thead><tr><th>#</th><th>Name</th><th>WhatsApp</th><th>Gender</th><th>Registered At</th></tr></thead>
+              <tbody id="reg-tbody"></tbody>
+            </table>
+            <div id="reg-empty" class="empty-state" style="display:none;padding:36px;">
+              <div class="empty-icon">📝</div><h3>No Registrations Yet</h3>
+              <p>Share the registration link with students.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feedback Table -->
+      <div id="section-fb" style="display:none;">
+        <div class="card mb-4">
+          <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <input type="text" id="fb-search" class="form-control" style="max-width:220px;" placeholder="🔍 Search name…" oninput="renderFb()">
+            <select id="fb-rating" class="form-control" style="max-width:150px;" onchange="renderFb()">
+              <option value="">All Ratings</option>
+              <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+              <option value="4">⭐⭐⭐⭐ Very Good</option>
+              <option value="3">⭐⭐⭐ Good</option>
+              <option value="2">⭐⭐ Fair</option>
+              <option value="1">⭐ Poor</option>
+            </select>
+            <select id="fb-join" class="form-control" style="max-width:160px;" onchange="renderFb()">
+              <option value="">All Responses</option>
+              <option value="Yes">✅ Yes, Interested</option>
+              <option value="Maybe">🤔 Maybe</option>
+              <option value="No">❌ Not Now</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="clearFbFilters()">✕ Clear</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body" style="padding:0;overflow-x:auto;">
+            <table class="table" id="fb-table" style="min-width:860px;">
+              <thead>
+                <tr><th>#</th><th>Name</th><th>WhatsApp</th><th>Rating</th><th>Join Interest</th><th>Contact Pref</th><th>Feedback</th><th>Submitted</th></tr>
+              </thead>
+              <tbody id="fb-tbody"></tbody>
+            </table>
+            <div id="fb-empty" class="empty-state" style="display:none;padding:36px;">
+              <div class="empty-icon">⭐</div><h3>No Feedback Yet</h3>
+              <p>Share the feedback link after the webinar.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/supabase.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('admin');
+let allReg = [], allFb = [], activeTab = 'reg';
+
+const base = window.location.origin + window.location.pathname.replace('/admin/webinar-report.html','');
+document.getElementById('reg-link').textContent = base + '/webinar-register.html';
+document.getElementById('fb-link').textContent  = base + '/webinar-feedback.html';
+
+if (user) { sbSyncToLocal(user.id, 'admin').then(loadData).catch(loadData); }
+
+async function loadData() {
+  const [{ data: regs }, { data: fbs }] = await Promise.all([
+    _sb.from('webinar_registrations').select('*').order('registered_at', { ascending: false }),
+    _sb.from('webinar_feedback').select('*').order('submitted_at', { ascending: false })
+  ]);
+  allReg = regs || [];
+  allFb  = fbs  || [];
+  renderStats();
+  renderReg();
+  renderFb();
+}
+
+function renderStats() {
+  const interested = allFb.filter(f => f.join_interest === 'Yes').length;
+  const avgRating  = allFb.length ? (allFb.reduce((s,f) => s + (f.rating||0), 0) / allFb.length).toFixed(1) : '—';
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-card"><div class="stat-icon blue">📝</div><div class="stat-info"><div class="stat-value">${allReg.length}</div><div class="stat-label">Registered</div></div></div>
+    <div class="stat-card"><div class="stat-icon teal">⭐</div><div class="stat-info"><div class="stat-value">${allFb.length}</div><div class="stat-label">Feedback Received</div></div></div>
+    <div class="stat-card"><div class="stat-icon gold">⭐</div><div class="stat-info"><div class="stat-value">${avgRating}</div><div class="stat-label">Avg Rating</div></div></div>
+    <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><div class="stat-value">${interested}</div><div class="stat-label">Want to Join Course</div></div></div>`;
+}
+
+const stars = ['','⭐','⭐⭐','⭐⭐⭐','⭐⭐⭐⭐','⭐⭐⭐⭐⭐'];
+const ratingLabel = ['','Poor','Fair','Good','Very Good','Excellent'];
+const ratingColor = ['','#dc2626','#d97706','#d69e2e','#16a34a','#3730a3'];
+const joinColor   = { Yes:'#16a34a', Maybe:'#d97706', No:'#dc2626' };
+
+function renderReg() {
+  const s = document.getElementById('reg-search').value.toLowerCase();
+  const g = document.getElementById('reg-gender').value;
+  let rows = allReg.filter(r => {
+    if (s && !r.name.toLowerCase().includes(s)) return false;
+    if (g && r.gender !== g) return false;
+    return true;
+  });
+  if (!rows.length) {
+    document.getElementById('reg-table').style.display = 'none';
+    document.getElementById('reg-empty').style.display = 'block'; return;
+  }
+  document.getElementById('reg-table').style.display = '';
+  document.getElementById('reg-empty').style.display = 'none';
+  document.getElementById('reg-tbody').innerHTML = rows.map((r,i) => `
+    <tr>
+      <td class="text-muted text-sm">${i+1}</td>
+      <td class="font-medium">${r.name}</td>
+      <td>${r.whatsapp}</td>
+      <td><span class="badge badge-gray">${r.gender}</span></td>
+      <td class="text-muted text-sm">${r.registered_at ? new Date(r.registered_at).toLocaleString('en-IN') : '—'}</td>
+    </tr>`).join('');
+}
+
+function renderFb() {
+  const s  = document.getElementById('fb-search').value.toLowerCase();
+  const rt = document.getElementById('fb-rating').value;
+  const ji = document.getElementById('fb-join').value;
+  let rows = allFb.filter(f => {
+    if (s  && !f.name.toLowerCase().includes(s)) return false;
+    if (rt && f.rating != rt) return false;
+    if (ji && f.join_interest !== ji) return false;
+    return true;
+  });
+  if (!rows.length) {
+    document.getElementById('fb-table').style.display = 'none';
+    document.getElementById('fb-empty').style.display = 'block'; return;
+  }
+  document.getElementById('fb-table').style.display = '';
+  document.getElementById('fb-empty').style.display = 'none';
+  document.getElementById('fb-tbody').innerHTML = rows.map((f,i) => `
+    <tr>
+      <td class="text-muted text-sm">${i+1}</td>
+      <td class="font-medium">${f.name}</td>
+      <td>${f.whatsapp}</td>
+      <td><span style="color:${ratingColor[f.rating]};font-weight:600;">${stars[f.rating]} ${ratingLabel[f.rating]}</span></td>
+      <td><span style="color:${joinColor[f.join_interest]||'#666'};font-weight:600;">${f.join_interest}</span></td>
+      <td class="text-sm text-muted">${f.contact_pref||'—'}</td>
+      <td style="max-width:200px;"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;cursor:pointer;" title="${(f.liked||'').replace(/"/g,'')}" onclick="showDetail(${JSON.stringify(f.name)},${JSON.stringify(f.liked||'')},${JSON.stringify(f.suggestions||'')},${JSON.stringify(f.questions||'')})">
+        💬 ${f.liked||'—'}
+      </div></td>
+      <td class="text-muted text-sm">${f.submitted_at ? new Date(f.submitted_at).toLocaleDateString('en-IN') : '—'}</td>
+    </tr>`).join('');
+}
+
+function showDetail(name, liked, suggestions, questions) {
+  const bd = document.createElement('div');
+  bd.className = 'modal-backdrop active';
+  bd.innerHTML = `
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header"><h3>💬 ${name}</h3><button class="modal-close" onclick="this.closest('.modal-backdrop').remove()">×</button></div>
+      <div class="modal-body">
+        ${liked ? `<p class="text-sm font-semibold mb-1">What they liked:</p><p class="text-sm mb-3" style="background:#f9f9f9;padding:10px;border-radius:8px;">${liked}</p>` : ''}
+        ${suggestions ? `<p class="text-sm font-semibold mb-1">Suggestions:</p><p class="text-sm mb-3" style="background:#f9f9f9;padding:10px;border-radius:8px;">${suggestions}</p>` : ''}
+        ${questions ? `<p class="text-sm font-semibold mb-1">Questions about course:</p><p class="text-sm" style="background:#f9f9f9;padding:10px;border-radius:8px;">${questions}</p>` : ''}
+      </div>
+    </div>`;
+  document.body.appendChild(bd);
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tab-reg').classList.toggle('active', tab === 'reg');
+  document.getElementById('tab-fb').classList.toggle('active', tab === 'fb');
+  document.getElementById('section-reg').style.display = tab === 'reg' ? '' : 'none';
+  document.getElementById('section-fb').style.display  = tab === 'fb'  ? '' : 'none';
+}
+
+function clearRegFilters() { document.getElementById('reg-search').value=''; document.getElementById('reg-gender').value=''; renderReg(); }
+function clearFbFilters()  { document.getElementById('fb-search').value=''; document.getElementById('fb-rating').value=''; document.getElementById('fb-join').value=''; renderFb(); }
+
+function copyLink(type) {
+  const el = type === 'reg' ? document.getElementById('reg-link') : document.getElementById('fb-link');
+  navigator.clipboard.writeText(el.textContent).then(() => showToast('Link copied!', 'success'));
+}
+
+function exportActive() {
+  if (activeTab === 'reg') {
+    if (!allReg.length) { showToast('No registrations to export', 'warning'); return; }
+    const headers = ['#','Name','WhatsApp','Gender','Registered At'];
+    const rows = allReg.map((r,i) => [i+1, r.name, r.whatsapp, r.gender, r.registered_at ? new Date(r.registered_at).toLocaleString('en-IN') : '']);
+    downloadCsv([headers,...rows], 'Webinar_Registrations_26Mar2026');
+  } else {
+    if (!allFb.length) { showToast('No feedback to export', 'warning'); return; }
+    const headers = ['#','Name','WhatsApp','Rating','Rating Label','Join Interest','Contact Pref','What They Liked','Suggestions','Questions','Submitted At'];
+    const rows = allFb.map((f,i) => [i+1, f.name, f.whatsapp, f.rating, ratingLabel[f.rating]||'', f.join_interest, f.contact_pref||'', f.liked, f.suggestions||'', f.questions||'', f.submitted_at ? new Date(f.submitted_at).toLocaleString('en-IN') : '']);
+    downloadCsv([headers,...rows], 'Webinar_Feedback_26Mar2026');
+  }
+}
+
+function downloadCsv(data, filename) {
+  const csv = data.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = filename + '.csv';
+  a.click();
+  showToast('Exported!', 'success');
+}
+</script>
+</body>
+</html>

@@ -79,7 +79,9 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../assets/js/data.js"></script>
+<script src="../assets/js/supabase.js"></script>
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/utils.js"></script>
 <script>
@@ -93,7 +95,7 @@ const CATEGORY_META = {
 };
 
 const user = initPage('admin');
-if (user) renderPage();
+if (user) { sbSyncToLocal(user.id, 'admin').then(renderPage).catch(renderPage); }
 
 function renderPage() {
   populateMonthFilter();
@@ -105,14 +107,14 @@ function populateMonthFilter() {
   const payments = dbGet(DB.PAYMENTS);
   const expenses = dbGet(DB.EXPENSES);
   const months = [...new Set([
-    ...payments.map(p => (p.paidAt || '').slice(0, 7)),
+    ...payments.map(p => (p.paidDate || '').slice(0, 7)),
     ...expenses.map(e => (e.date || '').slice(0, 7))
   ])].filter(Boolean).sort().reverse();
 
   document.getElementById('filter-month').innerHTML = '<option value="">All Time</option>' +
     months.map(m => {
       const d = new Date(m + '-01');
-      return `<option value="${m}">${d.toLocaleDateString('en-PK', { month: 'long', year: 'numeric' })}</option>`;
+      return `<option value="${m}">${d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</option>`;
     }).join('');
 }
 
@@ -121,7 +123,7 @@ function getFilteredData() {
   let payments = dbGet(DB.PAYMENTS);
   let expenses = dbGet(DB.EXPENSES);
   if (monthF) {
-    payments = payments.filter(p => (p.paidAt || '').startsWith(monthF));
+    payments = payments.filter(p => (p.paidDate || '').startsWith(monthF));
     expenses = expenses.filter(e => (e.date || '').startsWith(monthF));
   }
   return { payments, expenses };
@@ -230,7 +232,7 @@ function renderMonthlyTrend() {
   const allExpenses = dbGet(DB.EXPENSES);
 
   const months = [...new Set([
-    ...allPayments.map(p => (p.paidAt || '').slice(0, 7)),
+    ...allPayments.map(p => (p.paidDate || '').slice(0, 7)),
     ...allExpenses.map(e => (e.date || '').slice(0, 7))
   ])].filter(Boolean).sort();
 
@@ -240,16 +242,16 @@ function renderMonthlyTrend() {
   }
 
   const maxAmount = Math.max(...months.map(m => {
-    const inc = allPayments.filter(p => (p.paidAt || '').startsWith(m)).reduce((s, p) => s + (p.amount || 0), 0);
+    const inc = allPayments.filter(p => (p.paidDate || '').startsWith(m)).reduce((s, p) => s + (p.amount || 0), 0);
     const exp = allExpenses.filter(e => (e.date || '').startsWith(m)).reduce((s, e) => s + (e.amount || 0), 0);
     return Math.max(inc, exp);
   })) || 1;
 
   const bars = months.map(m => {
-    const inc = allPayments.filter(p => (p.paidAt || '').startsWith(m)).reduce((s, p) => s + (p.amount || 0), 0);
+    const inc = allPayments.filter(p => (p.paidDate || '').startsWith(m)).reduce((s, p) => s + (p.amount || 0), 0);
     const exp = allExpenses.filter(e => (e.date || '').startsWith(m)).reduce((s, e) => s + (e.amount || 0), 0);
     const net = inc - exp;
-    const label = new Date(m + '-01').toLocaleDateString('en-PK', { month: 'short', year: '2-digit' });
+    const label = new Date(m + '-01').toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
     return `
     <div style="flex:1;min-width:80px;">
       <div style="display:flex;align-items:flex-end;gap:4px;height:120px;margin-bottom:var(--space-2);">

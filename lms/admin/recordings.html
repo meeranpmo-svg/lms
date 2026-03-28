@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Recordings — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Class Recordings</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <div>
+          <h1>🎬 Manage Class Recordings</h1>
+          <p>Add Google Drive recordings for student access</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-outline" id="sync-btn" onclick="syncFromDrive()" title="Fetch new recordings from Google Drive folder">🔄 Sync from Drive</button>
+          <button class="btn btn-primary" onclick="openAddModal()">+ Add Recording</button>
+        </div>
+      </div>
+
+      <!-- Drive Sync Status -->
+      <div id="drive-sync-bar" style="display:none;" class="card mb-4" style="border-left:4px solid #16a34a;background:#f0fdf4;">
+        <div class="card-body" style="padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span id="drive-sync-msg" class="text-sm"></span>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('drive-sync-bar').style.display='none'">✕</button>
+        </div>
+      </div>
+
+      <!-- Drive Connect Card (shown when not connected) -->
+      <div id="drive-connect-card" class="card mb-4" style="border-left:4px solid #3730a3;background:#f5f3ff;display:none;">
+        <div class="card-body" style="padding:14px 18px;">
+          <div class="font-semibold text-sm mb-2">🔗 Connect Google Drive for Auto-Sync</div>
+          <p class="text-sm text-muted mb-3">Paste your Google Cloud OAuth2 Client ID below to enable automatic sync from the Meet Recordings folder.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <input type="text" id="client-id-input" class="form-control" style="max-width:420px;font-size:0.82rem;" placeholder="xxxxxxx.apps.googleusercontent.com">
+            <button class="btn btn-primary btn-sm" onclick="saveClientId()">Save & Connect</button>
+            <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="btn btn-ghost btn-sm">📋 Get Client ID</a>
+          </div>
+          <p class="text-xs text-muted mt-2">In Google Cloud Console → Create OAuth2 Client ID → Web Application → Add your site URL to "Authorized JavaScript Origins".</p>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-4 mb-4" id="stats-row" style="gap:var(--space-4);"></div>
+
+      <!-- How to get Drive link -->
+      <div class="card mb-4" style="border-left:4px solid #3730a3;background:#f5f3ff;">
+        <div class="card-body" style="padding:14px 18px;">
+          <div class="font-semibold text-sm mb-1">💡 How to add a Google Drive recording:</div>
+          <div class="text-sm text-muted">
+            1. Open <strong>Google Drive</strong> → find the recording video &nbsp;
+            2. Right-click → <strong>Share</strong> → <strong>"Anyone with the link"</strong> → <strong>Copy link</strong> &nbsp;
+            3. Paste that link below — the LMS converts it to an embed automatically ✅
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <div class="card mb-4">
+        <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="search-input" class="form-control" style="max-width:220px;" placeholder="🔍 Search…" oninput="renderList()">
+          <select id="filter-course" class="form-control" style="max-width:240px;" onchange="renderList()">
+            <option value="">All Courses</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="clearFilters()">✕ Clear</button>
+        </div>
+      </div>
+
+      <!-- List -->
+      <div id="recordings-container"></div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="modal-backdrop" id="rec-modal">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-header">
+      <h3 id="modal-title">Add Recording</h3>
+      <button class="modal-close" onclick="closeModal('rec-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="r-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Course <span style="color:red;">*</span></label>
+          <select id="r-course" class="form-control"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Session Date</label>
+          <input type="date" id="r-date" class="form-control">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Recording Title <span style="color:red;">*</span></label>
+        <input type="text" id="r-title" class="form-control" placeholder="e.g. Spoken English — Session 3 — Pronunciation">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Google Drive Link <span style="color:red;">*</span></label>
+        <input type="url" id="r-url" class="form-control" placeholder="https://drive.google.com/file/d/…/view?usp=sharing" oninput="previewEmbed()">
+        <p class="text-xs text-muted mt-1">Paste the share link from Google Drive. Make sure it's set to "Anyone with the link".</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description / Notes</label>
+        <textarea id="r-desc" class="form-control" rows="2" placeholder="Topics covered in this session…"></textarea>
+      </div>
+      <!-- Preview -->
+      <div id="embed-preview" style="display:none;margin-top:4px;">
+        <label class="form-label">Preview:</label>
+        <div style="position:relative;padding-bottom:56.25%;height:0;border-radius:8px;overflow:hidden;background:#000;">
+          <iframe id="preview-frame" src="" allowfullscreen
+            style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('rec-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRecording()">Save Recording</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/supabase.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('admin');
+if (user) { sbSyncToLocal(user.id, 'admin').then(renderPage).catch(renderPage); }
+
+function getRecordings() { return JSON.parse(localStorage.getItem('lms_recordings') || '[]'); }
+function saveRecordings(r) { localStorage.setItem('lms_recordings', JSON.stringify(r)); }
+
+function toDriveEmbed(url) {
+  if (!url) return '';
+  if (url.includes('/preview')) return url;
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return `https://drive.google.com/file/d/${m[1]}/preview`;
+  return url;
+}
+
+function renderPage() {
+  const courses = dbGet(DB.COURSES);
+  // Populate course dropdowns
+  const opts = courses.map(c => `<option value="${c.id}">${c.icon||'📚'} ${c.title}</option>`).join('');
+  document.getElementById('filter-course').innerHTML = '<option value="">All Courses</option>' + opts;
+  document.getElementById('r-course').innerHTML = opts;
+  renderStats();
+  renderList();
+}
+
+function renderStats() {
+  const recs    = getRecordings();
+  const courses = [...new Set(recs.map(r => r.courseId))].length;
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-card"><div class="stat-icon teal">🎬</div><div class="stat-info"><div class="stat-value">${recs.length}</div><div class="stat-label">Total Recordings</div></div></div>
+    <div class="stat-card"><div class="stat-icon blue">📚</div><div class="stat-info"><div class="stat-value">${courses}</div><div class="stat-label">Courses Covered</div></div></div>`;
+}
+
+function renderList() {
+  const search  = document.getElementById('search-input').value.toLowerCase();
+  const fCourse = document.getElementById('filter-course').value;
+  const courses = dbGet(DB.COURSES);
+
+  let recs = getRecordings();
+  if (fCourse) recs = recs.filter(r => r.courseId === fCourse);
+  if (search)  recs = recs.filter(r => r.title.toLowerCase().includes(search));
+  recs.sort((a,b) => new Date(b.date||0) - new Date(a.date||0));
+
+  const container = document.getElementById('recordings-container');
+
+  if (!recs.length) {
+    container.innerHTML = `
+      <div class="card"><div class="card-body"><div class="empty-state">
+        <div class="empty-icon">🎬</div><h3>No Recordings Added</h3>
+        <p>Click "+ Add Recording" to upload your first Google Meet recording link.</p>
+        <button class="btn btn-primary mt-4" onclick="openAddModal()">+ Add Recording</button>
+      </div></div></div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="card">
+      <div class="card-body" style="padding:0;overflow-x:auto;">
+        <table class="table" style="min-width:700px;">
+          <thead><tr><th>#</th><th>Title</th><th>Course</th><th>Date</th><th>Description</th><th style="text-align:right;">Actions</th></tr></thead>
+          <tbody>
+            ${recs.map((r,i) => {
+              const c = courses.find(x => x.id === r.courseId);
+              return `<tr>
+                <td class="text-muted text-sm">${i+1}</td>
+                <td class="font-medium">🎬 ${r.title}</td>
+                <td>${c ? `<span class="badge badge-gray">${c.icon||''} ${c.title}</span>` : '—'}</td>
+                <td class="text-sm text-muted">${r.date ? new Date(r.date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}) : '—'}</td>
+                <td class="text-sm text-muted" style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.description||'—'}</td>
+                <td style="text-align:right;">
+                  <button class="btn btn-outline btn-sm" onclick="previewRec('${r.id}')">▶ Play</button>
+                  <button class="btn btn-ghost btn-sm"   onclick="editRec('${r.id}')">Edit</button>
+                  <button class="btn btn-danger btn-sm"  onclick="deleteRec('${r.id}','${r.title.replace(/'/g,"\\'")}')">Delete</button>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function openAddModal() {
+  document.getElementById('modal-title').textContent = 'Add Recording';
+  ['r-id','r-title','r-url','r-desc'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('r-date').value = new Date().toISOString().split('T')[0];
+  const courses = dbGet(DB.COURSES);
+  if (courses.length) document.getElementById('r-course').value = courses[0].id;
+  document.getElementById('embed-preview').style.display = 'none';
+  document.getElementById('preview-frame').src = '';
+  openModal('rec-modal');
+}
+
+function editRec(id) {
+  const r = getRecordings().find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('modal-title').textContent = 'Edit Recording';
+  document.getElementById('r-id').value    = r.id;
+  document.getElementById('r-course').value= r.courseId;
+  document.getElementById('r-date').value  = r.date || '';
+  document.getElementById('r-title').value = r.title;
+  document.getElementById('r-url').value   = r.driveUrl;
+  document.getElementById('r-desc').value  = r.description || '';
+  previewEmbed();
+  openModal('rec-modal');
+}
+
+function previewEmbed() {
+  const url   = document.getElementById('r-url').value.trim();
+  const embed = toDriveEmbed(url);
+  const wrap  = document.getElementById('embed-preview');
+  if (embed) {
+    document.getElementById('preview-frame').src = embed;
+    wrap.style.display = 'block';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+function saveRecording() {
+  const title  = document.getElementById('r-title').value.trim();
+  const url    = document.getElementById('r-url').value.trim();
+  const course = document.getElementById('r-course').value;
+  if (!title)  { showToast('Please enter a title', 'error'); return; }
+  if (!url)    { showToast('Please enter a Google Drive link', 'error'); return; }
+  if (!course) { showToast('Please select a course', 'error'); return; }
+
+  const id   = document.getElementById('r-id').value || genId();
+  const recs = getRecordings();
+  const idx  = recs.findIndex(x => x.id === id);
+  const rec  = {
+    id, courseId: course,
+    title, driveUrl: url,
+    date:        document.getElementById('r-date').value || null,
+    description: document.getElementById('r-desc').value.trim() || null
+  };
+  if (idx >= 0) recs[idx] = rec; else recs.push(rec);
+  saveRecordings(recs);
+  closeModal('rec-modal');
+  renderStats();
+  renderList();
+  showToast(`Recording "${title}" saved!`, 'success');
+}
+
+function deleteRec(id, title) {
+  showConfirm(`Delete recording "<strong>${title}</strong>"?`, () => {
+    saveRecordings(getRecordings().filter(r => r.id !== id));
+    renderStats();
+    renderList();
+    showToast('Recording deleted', 'warning');
+  });
+}
+
+function previewRec(id) {
+  const r     = getRecordings().find(x => x.id === id);
+  if (!r) return;
+  const embed = toDriveEmbed(r.driveUrl);
+  const bd    = document.createElement('div');
+  bd.className = 'modal-backdrop active';
+  bd.innerHTML = `
+    <div class="modal" style="max-width:820px;">
+      <div class="modal-header">
+        <h3>▶ ${r.title}</h3>
+        <button class="modal-close" onclick="this.closest('.modal-backdrop').remove();document.getElementById('tmp-frame').src='';">×</button>
+      </div>
+      <div class="modal-body" style="padding:0;">
+        <div style="position:relative;padding-bottom:56.25%;height:0;background:#000;">
+          <iframe id="tmp-frame" src="${embed}" allowfullscreen
+            style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe>
+        </div>
+        ${r.description ? `<div style="padding:14px;font-size:0.88rem;color:#555;">${r.description}</div>` : ''}
+      </div>
+    </div>`;
+  document.body.appendChild(bd);
+}
+
+function clearFilters() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('filter-course').value = '';
+  renderList();
+}
+
+/* =====================================================================
+   GOOGLE DRIVE AUTO-SYNC
+   ===================================================================== */
+const DRIVE_FOLDER_ID = '1M35pH2znFX7gSUoCpm25z8GuLe0vaM7c';
+const DRIVE_SCOPES    = 'https://www.googleapis.com/auth/drive.readonly';
+
+function getDriveClientId() { return localStorage.getItem('lms_drive_client_id') || ''; }
+
+function saveClientId() {
+  const v = document.getElementById('client-id-input').value.trim();
+  if (!v) { showToast('Please enter a Client ID', 'error'); return; }
+  localStorage.setItem('lms_drive_client_id', v);
+  document.getElementById('drive-connect-card').style.display = 'none';
+  showToast('Client ID saved — clicking Sync now', 'success');
+  syncFromDrive();
+}
+
+function showSyncBar(msg, color) {
+  const bar = document.getElementById('drive-sync-bar');
+  bar.style.display = '';
+  bar.style.borderLeftColor = color || '#16a34a';
+  bar.style.background = color === '#dc2626' ? '#fef2f2' : '#f0fdf4';
+  document.getElementById('drive-sync-msg').textContent = msg;
+}
+
+function syncFromDrive() {
+  const clientId = getDriveClientId();
+  if (!clientId) {
+    document.getElementById('drive-connect-card').style.display = '';
+    const saved = localStorage.getItem('lms_drive_client_id');
+    if (saved) document.getElementById('client-id-input').value = saved;
+    return;
+  }
+  showSyncBar('🔄 Connecting to Google Drive…');
+  const btn = document.getElementById('sync-btn');
+  if (btn) btn.disabled = true;
+
+  // Load Google Identity Services if not already loaded
+  if (!window.google || !window.google.accounts) {
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.onload = () => _doOAuthSync(clientId);
+    document.head.appendChild(s);
+  } else {
+    _doOAuthSync(clientId);
+  }
+}
+
+function _doOAuthSync(clientId) {
+  const tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: DRIVE_SCOPES,
+    callback: async (tokenResponse) => {
+      const btn = document.getElementById('sync-btn');
+      if (btn) btn.disabled = false;
+      if (tokenResponse.error) {
+        showSyncBar('❌ Auth failed: ' + tokenResponse.error, '#dc2626');
+        return;
+      }
+      showSyncBar('🔄 Fetching recordings from Drive folder…');
+      await _fetchDriveFiles(tokenResponse.access_token);
+    },
+  });
+  tokenClient.requestAccessToken({ prompt: '' });
+}
+
+async function _fetchDriveFiles(token) {
+  try {
+    // List all video files in the folder
+    let allFiles = [];
+    let pageToken = '';
+    do {
+      const q    = encodeURIComponent(`'${DRIVE_FOLDER_ID}' in parents and mimeType contains 'video/' and trashed=false`);
+      const url  = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id,name,createdTime,mimeType)&orderBy=createdTime&pageSize=100${pageToken ? '&pageToken='+pageToken : ''}`;
+      const res  = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      allFiles = allFiles.concat(data.files || []);
+      pageToken = data.nextPageToken || '';
+    } while (pageToken);
+
+    // Sort by createdTime
+    allFiles.sort((a, b) => new Date(a.createdTime) - new Date(b.createdTime));
+
+    const existing = getRecordings();
+    const existingDriveIds = new Set(existing.map(r => {
+      const m = (r.driveUrl || '').match(/\/d\/([a-zA-Z0-9_-]+)/);
+      return m ? m[1] : null;
+    }).filter(Boolean));
+
+    const newFiles = allFiles.filter(f => !existingDriveIds.has(f.id));
+
+    if (!newFiles.length) {
+      showSyncBar('✅ Already up to date — no new recordings found.', '#3730a3');
+      return;
+    }
+
+    // Auto-number new recordings continuing from existing count
+    const courses  = dbGet(DB.COURSES);
+    const c1       = courses.find(c => c.id === 'c1') || courses[0];
+    let nextNum = allFiles.findIndex(f => f.id === newFiles[0].id) + 1;
+
+    const updated = [...existing];
+    newFiles.forEach((f, i) => {
+      const num   = nextNum + i;
+      const dateStr = f.createdTime ? f.createdTime.split('T')[0] : '';
+      updated.push({
+        id:          'mr_' + f.id.slice(0, 8),
+        courseId:    c1 ? c1.id : 'c1',
+        title:       'Montessori ' + num,
+        date:        dateStr,
+        driveUrl:    'https://drive.google.com/file/d/' + f.id + '/view',
+        description: 'Montessori Teacher Training — Session ' + num
+      });
+    });
+
+    saveRecordings(updated);
+    renderStats();
+    renderList();
+    showSyncBar(`✅ Synced! Added ${newFiles.length} new recording${newFiles.length > 1 ? 's' : ''} (Montessori ${nextNum}–${nextNum + newFiles.length - 1}).`);
+    showToast(`Added ${newFiles.length} new recording${newFiles.length > 1 ? 's' : ''}!`, 'success');
+
+  } catch (err) {
+    showSyncBar('❌ Sync failed: ' + err.message, '#dc2626');
+    console.error('Drive sync error:', err);
+  }
+}
+
+// Auto-sync on page load if client ID is set and token cached
+(function autoSync() {
+  if (!getDriveClientId()) return;
+  // Only auto-sync once every 30 minutes
+  const last = parseInt(localStorage.getItem('lms_drive_last_sync') || '0');
+  if (Date.now() - last < 30 * 60 * 1000) return;
+  localStorage.setItem('lms_drive_last_sync', Date.now());
+  // Slight delay so page renders first
+  setTimeout(syncFromDrive, 1500);
+})();
+</script>
+</body>
+</html>

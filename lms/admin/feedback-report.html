@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feedback Report — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">Feedback Report</span></div>
+      <div class="header-right">
+        <button class="btn btn-primary btn-sm" onclick="exportExcel()">⬇️ Export Excel</button>
+        <span id="user-name" class="text-sm font-medium" style="margin-left:12px;"></span>
+      </div>
+    </header>
+    <main class="page-content">
+
+      <div class="page-header">
+        <div>
+          <h1>Student Feedback Report</h1>
+          <p>All submitted feedback from students — 2026 Batch</p>
+        </div>
+        <a href="../feedback.html" target="_blank" class="btn btn-outline">🔗 View Feedback Form</a>
+      </div>
+
+      <!-- Share Link Card -->
+      <div class="card mb-4" style="border-left:4px solid #1a7a7a;">
+        <div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;">
+            <div class="font-semibold text-sm mb-1">📤 Share this form link with students:</div>
+            <code id="form-link" style="font-size:0.82rem;color:#1a7a7a;word-break:break-all;"></code>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="copyLink()">📋 Copy Link</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-4 mb-4" id="stats-row" style="gap:var(--space-4);"></div>
+
+      <!-- Filters -->
+      <div class="card mb-4">
+        <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="search-input" class="form-control" style="max-width:220px;" placeholder="🔍 Search name…" oninput="renderTable()">
+          <select id="filter-course" class="form-control" style="max-width:240px;" onchange="renderTable()">
+            <option value="">All Courses</option>
+            <option>Advance Montessori Teacher Training</option>
+            <option>Spoken English</option>
+            <option>Phonics Training</option>
+            <option>Child Psychology</option>
+          </select>
+          <select id="filter-session" class="form-control" style="max-width:160px;" onchange="renderTable()">
+            <option value="">All Sessions</option>
+            <option value="Tuesday">Tuesday</option>
+            <option value="Saturday">Saturday</option>
+            <option value="Both">Both Days</option>
+          </select>
+          <select id="filter-rating" class="form-control" style="max-width:140px;" onchange="renderTable()">
+            <option value="">All Ratings</option>
+            <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+            <option value="4">⭐⭐⭐⭐ Very Good</option>
+            <option value="3">⭐⭐⭐ Good</option>
+            <option value="2">⭐⭐ Fair</option>
+            <option value="1">⭐ Poor</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="clearFilters()">✕ Clear</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="card">
+        <div class="card-body" style="padding:0;overflow-x:auto;">
+          <table class="table" id="feedback-table" style="min-width:900px;">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Student Name</th>
+                <th>WhatsApp</th>
+                <th>Course</th>
+                <th>Date of Join</th>
+                <th>Fees Paid</th>
+                <th>Pending</th>
+                <th>Session</th>
+                <th>Rating</th>
+                <th>Feedback</th>
+                <th>Submitted</th>
+              </tr>
+            </thead>
+            <tbody id="feedback-tbody"></tbody>
+          </table>
+          <div id="empty-state" class="empty-state" style="display:none;padding:40px;">
+            <div class="empty-icon">📋</div>
+            <h3>No Feedback Yet</h3>
+            <p>Share the form link with students to collect responses.</p>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/supabase.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('admin');
+let allFeedback = [];
+
+// Set form link
+const base = window.location.origin + window.location.pathname.replace('/admin/feedback-report.html','');
+document.getElementById('form-link').textContent = base + '/feedback.html';
+
+if (user) {
+  sbSyncToLocal(user.id, 'admin').then(loadFeedback).catch(loadFeedback);
+}
+
+async function loadFeedback() {
+  const { data, error } = await _sb.from('feedback').select('*').order('submitted_at', { ascending: false });
+  if (error) {
+    showToast('Could not load feedback from Supabase', 'error');
+    allFeedback = [];
+  } else {
+    allFeedback = data || [];
+  }
+  renderStats();
+  renderTable();
+}
+
+function renderStats() {
+  const total   = allFeedback.length;
+  const avgRating = total ? (allFeedback.reduce((s,f) => s + (f.rating||0), 0) / total).toFixed(1) : '—';
+  const excellent = allFeedback.filter(f => f.rating >= 4).length;
+  const courses  = [...new Set(allFeedback.map(f => f.course))].length;
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-card"><div class="stat-icon teal">📋</div><div class="stat-info"><div class="stat-value">${total}</div><div class="stat-label">Total Responses</div></div></div>
+    <div class="stat-card"><div class="stat-icon gold">⭐</div><div class="stat-info"><div class="stat-value">${avgRating}</div><div class="stat-label">Avg Rating</div></div></div>
+    <div class="stat-card"><div class="stat-icon green">👍</div><div class="stat-info"><div class="stat-value">${excellent}</div><div class="stat-label">Excellent / Very Good</div></div></div>
+    <div class="stat-card"><div class="stat-icon blue">📚</div><div class="stat-info"><div class="stat-value">${courses}</div><div class="stat-label">Courses Represented</div></div></div>`;
+}
+
+const stars = ['','⭐','⭐⭐','⭐⭐⭐','⭐⭐⭐⭐','⭐⭐⭐⭐⭐'];
+const ratingLabel = ['','Poor','Fair','Good','Very Good','Excellent'];
+const ratingColor = ['','#e53e3e','#dd6b20','#d69e2e','#38a169','#1a7a7a'];
+
+function renderTable() {
+  const search  = document.getElementById('search-input').value.toLowerCase();
+  const fCourse = document.getElementById('filter-course').value;
+  const fSess   = document.getElementById('filter-session').value;
+  const fRating = document.getElementById('filter-rating').value;
+
+  let rows = allFeedback.filter(f => {
+    if (search  && !f.student_name.toLowerCase().includes(search)) return false;
+    if (fCourse && f.course !== fCourse) return false;
+    if (fSess   && !f.session_preference.includes(fSess)) return false;
+    if (fRating && f.rating != fRating) return false;
+    return true;
+  });
+
+  if (!rows.length) {
+    document.getElementById('feedback-table').style.display = 'none';
+    document.getElementById('empty-state').style.display = 'block';
+    return;
+  }
+  document.getElementById('feedback-table').style.display = '';
+  document.getElementById('empty-state').style.display = 'none';
+
+  document.getElementById('feedback-tbody').innerHTML = rows.map((f, i) => `
+    <tr>
+      <td class="text-muted text-sm">${i+1}</td>
+      <td class="font-medium">${f.student_name}</td>
+      <td>${f.whatsapp}</td>
+      <td><span class="badge badge-gray" style="white-space:nowrap;">${f.course}</span></td>
+      <td>${f.date_of_join || '—'}</td>
+      <td class="text-sm">${f.fees_paid ? '₹'+Number(f.fees_paid).toLocaleString('en-IN') : '—'}</td>
+      <td class="text-sm">${f.fees_pending ? '<span style="color:#e53e3e;">₹'+Number(f.fees_pending).toLocaleString('en-IN')+'</span>' : '—'}</td>
+      <td><span class="badge" style="background:#e0f2f1;color:#1a7a7a;">${f.session_preference}</span></td>
+      <td><span style="color:${ratingColor[f.rating]};font-weight:600;">${stars[f.rating]} ${ratingLabel[f.rating]}</span></td>
+      <td style="max-width:220px;"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;cursor:pointer;" title="${(f.feedback||'').replace(/"/g,'&quot;')}" onclick="showFeedback(${JSON.stringify(f.student_name)},${JSON.stringify(f.feedback)},${JSON.stringify(f.suggestions||'')})">
+        💬 ${f.feedback}
+      </div></td>
+      <td class="text-muted text-sm">${f.submitted_at ? new Date(f.submitted_at).toLocaleDateString('en-IN') : '—'}</td>
+    </tr>`).join('');
+}
+
+function showFeedback(name, fb, sug) {
+  const bd = document.createElement('div');
+  bd.className = 'modal-backdrop active';
+  bd.innerHTML = `
+    <div class="modal" style="max-width:500px;">
+      <div class="modal-header">
+        <h3>💬 Feedback — ${name}</h3>
+        <button class="modal-close" onclick="this.closest('.modal-backdrop').remove()">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-sm font-semibold mb-2">Feedback:</p>
+        <p class="text-sm" style="line-height:1.7;background:#f9f9f9;padding:12px;border-radius:8px;">${fb}</p>
+        ${sug ? `<p class="text-sm font-semibold mt-4 mb-2">Suggestions:</p>
+        <p class="text-sm" style="line-height:1.7;background:#f9f9f9;padding:12px;border-radius:8px;">${sug}</p>` : ''}
+      </div>
+    </div>`;
+  document.body.appendChild(bd);
+}
+
+function clearFilters() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('filter-course').value = '';
+  document.getElementById('filter-session').value = '';
+  document.getElementById('filter-rating').value = '';
+  renderTable();
+}
+
+function copyLink() {
+  const link = document.getElementById('form-link').textContent;
+  navigator.clipboard.writeText(link).then(() => showToast('Link copied!', 'success'));
+}
+
+function exportExcel() {
+  if (!allFeedback.length) { showToast('No data to export', 'warning'); return; }
+  const headers = ['#','Student Name','WhatsApp','Email','Course','Date of Join','Fees Paid','Pending Fees','Session Preference','Rating','Rating Label','Feedback','Suggestions','Submitted At'];
+  const rows = allFeedback.map((f,i) => [
+    i+1, f.student_name, f.whatsapp, f.email||'', f.course,
+    f.date_of_join||'', f.fees_paid||0, f.fees_pending||0,
+    f.session_preference, f.rating, ratingLabel[f.rating]||'',
+    f.feedback, f.suggestions||'',
+    f.submitted_at ? new Date(f.submitted_at).toLocaleString('en-IN') : ''
+  ]);
+  let csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Feedback_Report_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+  showToast('Report exported!', 'success');
+}
+</script>
+</body>
+</html>
