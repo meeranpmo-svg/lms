@@ -464,3 +464,115 @@
   .btn { padding: 8px 12px; font-size: 0.8125rem; }
   .page-header .btn { align-self: stretch; text-align: center; }
 }
+
+/* ==========================================================
+   MOBILE BOTTOM NAVIGATION BAR (student only)
+   ========================================================== */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Show bottom nav */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--white);
+    border-top: 1px solid var(--gray-200);
+    z-index: 200;
+    padding: 0;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+    height: 62px;
+    align-items: stretch;
+  }
+  /* Push page content above bottom nav */
+  .main-content { padding-bottom: 62px; }
+
+  /* Each nav tab */
+  .mob-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    text-decoration: none;
+    color: var(--gray-400);
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    transition: color 0.15s;
+    padding: 6px 2px;
+    position: relative;
+    border: none;
+    background: none;
+    cursor: pointer;
+  }
+  .mob-nav-item i {
+    font-size: 1.25rem;
+    line-height: 1;
+  }
+  .mob-nav-item.active { color: var(--primary); }
+  .mob-nav-item.active::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 20%; right: 20%;
+    height: 3px;
+    background: var(--primary);
+    border-radius: 0 0 4px 4px;
+  }
+  .mob-nav-item.live {
+    color: var(--white);
+    background: linear-gradient(135deg, #1a73e8, #0d5dc4);
+    border-radius: 14px;
+    margin: 6px 4px;
+    flex: 1.2;
+    box-shadow: 0 4px 12px rgba(26,115,232,0.4);
+    gap: 2px;
+  }
+  .mob-nav-item.live i { font-size: 1.1rem; }
+  .mob-nav-item.live.has-class-today {
+    background: linear-gradient(135deg, var(--success), #047857);
+    box-shadow: 0 4px 12px rgba(16,185,129,0.5);
+    animation: pulse-live 2s infinite;
+  }
+  @keyframes pulse-live {
+    0%, 100% { box-shadow: 0 4px 12px rgba(16,185,129,0.5); }
+    50%       { box-shadow: 0 4px 20px rgba(16,185,129,0.8); }
+  }
+
+  /* Notification badge on nav */
+  .mob-nav-item .mob-notif-dot {
+    position: absolute;
+    top: 6px; right: calc(50% - 14px);
+    width: 8px; height: 8px;
+    background: var(--danger);
+    border-radius: 50%;
+    border: 2px solid var(--white);
+  }
+}
+
+/* ==========================================================
+   MOBILE LIVE CLASS CARD (dashboard banner)
+   ========================================================== */
+@media (max-width: 768px) {
+  .live-class-card {
+    border-radius: 16px !important;
+    padding: 16px !important;
+  }
+  .live-class-card .join-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 14px !important;
+    font-size: 1rem !important;
+    border-radius: 12px !important;
+    margin-top: 12px !important;
+  }
+
+  /* Hide sidebar toggle hamburger since we have bottom nav */
+  #hamburger-btn { display: none !important; }
+  .sidebar { display: none !important; }
+  .main-content { margin-left: 0 !important; }
+}
