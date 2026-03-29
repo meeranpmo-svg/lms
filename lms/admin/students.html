@@ -27,6 +27,7 @@
         </div>
         <div style="display:flex;gap:10px;align-items:center;">
           <button class="btn btn-ghost" id="sync-btn" onclick="syncStudents()">🔄 Sync New Registrations</button>
+          <button class="btn btn-outline" onclick="exportExcel()" style="background:#16a34a;color:#fff;border-color:#16a34a;">📥 Export Excel</button>
           <button class="btn btn-primary" onclick="openModal('add-student-modal')">+ Enroll New Student</button>
         </div>
       </div>
@@ -170,6 +171,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../assets/js/data.js"></script>
 <script src="../assets/js/supabase.js"></script>
@@ -439,6 +441,53 @@ function bulkRemove() {
     });
     renderStudents(); clearSelection(); showToast(`${ids.length} student(s) removed`, 'warning');
   }, 'Remove Students');
+}
+
+function exportExcel() {
+  const students    = dbGet(DB.USERS).filter(u => u.role === 'student');
+  const enrollments = dbGet(DB.ENROLLMENTS);
+  const courses     = dbGet(DB.COURSES);
+
+  const rows = students.map((s, i) => {
+    const studentEnrolls = enrollments.filter(e => e.studentId === s.id);
+    const courseNames    = studentEnrolls.map(e => {
+      const c = courses.find(x => x.id === e.courseId);
+      return c ? c.title : e.courseId;
+    }).join(', ');
+    const feeStatus = studentEnrolls.some(e => e.feeStatus === 'pending') ? 'Pending' : 'Paid';
+    const avgProgress = studentEnrolls.length
+      ? Math.round(studentEnrolls.reduce((s, e) => s + (e.progress || 0), 0) / studentEnrolls.length) : 0;
+
+    return {
+      '#':              i + 1,
+      'Full Name':      s.name,
+      'Email':          s.email || '',
+      'Username':       s.username || s.email || '',
+      'WhatsApp':       s.phone || '',
+      'Enrolled Course': courseNames || 'Not Enrolled',
+      'Progress (%)':   avgProgress,
+      'Fee Status':     feeStatus,
+      'Account Status': s.isActive === false ? 'Inactive' : 'Active',
+      'Joined Date':    s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-PK') : '',
+    };
+  });
+
+  if (!rows.length) { showToast('No students to export', 'warning'); return; }
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+
+  // Column widths
+  ws['!cols'] = [
+    {wch:4}, {wch:24}, {wch:28}, {wch:22}, {wch:16},
+    {wch:36}, {wch:14}, {wch:12}, {wch:14}, {wch:14}
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Students');
+
+  const date = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, `Ansha-Students-${date}.xlsx`);
+  showToast(`✅ Exported ${rows.length} students to Excel`, 'success');
 }
 
 function removeStudent(id, name) {
