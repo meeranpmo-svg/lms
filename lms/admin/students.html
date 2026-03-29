@@ -284,6 +284,7 @@ function renderStudents() {
         <div>
           <div class="font-medium">${s.name} ${isNew ? '<span style="background:#16a34a;color:#fff;font-size:0.65rem;padding:2px 7px;border-radius:20px;font-weight:700;margin-left:4px;">NEW</span>' : ''}</div>
           <div class="text-xs text-muted">${s.email}</div>
+          <div class="text-xs" style="color:#7c3aed;font-weight:600;">🔑 ${s.username || s.email}</div>
         </div>
       </div></td>
       <td class="text-sm">${s.phone || '—'}</td>
@@ -357,6 +358,7 @@ function viewStudent(id) {
       <div>
         <h2 class="text-xl font-bold">${s.name}</h2>
         <p class="text-muted">${s.email}</p>
+        <p class="text-sm mt-1" style="color:#7c3aed;font-weight:600;">🔑 Username: ${s.username || s.email}</p>
         <p class="text-sm mt-1">${s.phone || 'No phone'}</p>
         <div class="mt-2">${roleBadge('student')}</div>
       </div>
