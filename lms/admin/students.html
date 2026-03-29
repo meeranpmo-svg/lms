@@ -28,6 +28,7 @@
         <div style="display:flex;gap:10px;align-items:center;">
           <button class="btn btn-ghost" id="sync-btn" onclick="syncStudents()">🔄 Sync New Registrations</button>
           <button class="btn btn-outline" onclick="exportExcel()" style="background:#16a34a;color:#fff;border-color:#16a34a;">📥 Export Excel</button>
+          <button class="btn btn-outline" onclick="openModal('import-modal')" style="background:#0d9488;color:#fff;border-color:#0d9488;">📤 Import Excel</button>
           <button class="btn btn-primary" onclick="openModal('add-student-modal')">+ Enroll New Student</button>
         </div>
       </div>
@@ -168,6 +169,52 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('add-student-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="addStudent()">Enroll Student</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import Excel Modal -->
+<div class="modal-backdrop" id="import-modal">
+  <div class="modal" style="max-width:660px;">
+    <div class="modal-header">
+      <h3>📤 Import Students from Excel</h3>
+      <button class="modal-close" onclick="closeModal('import-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- Instructions -->
+      <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:.85rem;">
+        <strong>📋 Excel columns required:</strong> <code>name</code>, <code>email</code>, <code>phone</code>, <code>password</code>, <code>course</code> (optional)<br>
+        <span class="text-muted">Duplicate emails/usernames are automatically skipped — no double entries.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Choose Excel File (.xlsx)</label>
+        <input type="file" id="import-file" class="form-control" accept=".xlsx,.xls" onchange="previewImport(this)">
+      </div>
+      <!-- Preview Table -->
+      <div id="import-preview" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span class="text-sm font-semibold">Preview</span>
+          <span id="import-summary" class="text-sm"></span>
+        </div>
+        <div style="max-height:260px;overflow-y:auto;border-radius:8px;border:1px solid #e2e8f0;">
+          <table style="width:100%;font-size:.8rem;border-collapse:collapse;">
+            <thead style="background:#f8fafc;position:sticky;top:0;">
+              <tr>
+                <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">Status</th>
+                <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">Name</th>
+                <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">Email</th>
+                <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">Phone</th>
+                <th style="padding:8px 10px;text-align:left;border-bottom:1px solid #e2e8f0;">Course</th>
+              </tr>
+            </thead>
+            <tbody id="import-preview-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('import-modal')">Cancel</button>
+      <button class="btn btn-primary" id="import-confirm-btn" style="display:none;" onclick="confirmImport()">Import New Students</button>
     </div>
   </div>
 </div>
@@ -549,6 +596,100 @@ function exportExcel() {
   const date = new Date().toISOString().split('T')[0];
   XLSX.writeFile(wb, `Ansha-Students-${date}.xlsx`);
   showToast(`✅ Exported ${rows.length} students to Excel`, 'success');
+}
+
+/* ── Excel Import with duplicate detection ── */
+let _importRows = [];
+
+function previewImport(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const wb   = XLSX.read(e.target.result, { type: 'array' });
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    const existingEmails    = new Set(dbGet(DB.USERS).map(u => (u.email || '').toLowerCase()));
+    const existingUsernames = new Set(dbGet(DB.USERS).map(u => (u.username || '').toLowerCase()));
+    const courses           = dbGet(DB.COURSES);
+
+    _importRows = data.map(row => {
+      const name     = (row['name']  || row['Name']  || row['NAME']  || '').toString().trim();
+      const email    = (row['email'] || row['Email'] || row['EMAIL'] || '').toString().trim().toLowerCase();
+      const phone    = (row['phone'] || row['Phone'] || row['PHONE'] || row['whatsapp'] || '').toString().trim();
+      const password = (row['password'] || row['Password'] || '').toString().trim() || 'ansha123';
+      const courseVal= (row['course'] || row['Course'] || '').toString().trim().toLowerCase();
+      const username = email.split('@')[0].replace(/[^a-z0-9]/gi,'').toLowerCase();
+      const course   = courses.find(c => c.title.toLowerCase().includes(courseVal) || c.id === courseVal) || null;
+
+      const isDuplicate = !name || !email
+        || existingEmails.has(email)
+        || existingUsernames.has(username);
+
+      return { name, email, phone, password, username, course, isDuplicate,
+        reason: !name ? 'Missing name' : !email ? 'Missing email'
+          : existingEmails.has(email) ? 'Email already exists'
+          : existingUsernames.has(username) ? 'Username taken' : '' };
+    });
+
+    const newCount  = _importRows.filter(r => !r.isDuplicate).length;
+    const skipCount = _importRows.filter(r =>  r.isDuplicate).length;
+
+    document.getElementById('import-summary').innerHTML =
+      `<span style="color:#16a34a;font-weight:700;">✅ ${newCount} new</span>&nbsp;&nbsp;`+
+      `<span style="color:#dc2626;font-weight:700;">⛔ ${skipCount} skipped (duplicates)</span>`;
+
+    document.getElementById('import-preview-body').innerHTML = _importRows.map(r => `
+      <tr style="background:${r.isDuplicate ? '#fff7f7' : '#f0fdf4'};">
+        <td style="padding:7px 10px;">
+          ${r.isDuplicate
+            ? `<span style="color:#dc2626;font-size:.75rem;font-weight:700;">⛔ SKIP — ${r.reason}</span>`
+            : `<span style="color:#16a34a;font-size:.75rem;font-weight:700;">✅ NEW</span>`}
+        </td>
+        <td style="padding:7px 10px;">${r.name || '—'}</td>
+        <td style="padding:7px 10px;">${r.email || '—'}</td>
+        <td style="padding:7px 10px;">${r.phone || '—'}</td>
+        <td style="padding:7px 10px;">${r.course ? r.course.title : '—'}</td>
+      </tr>`).join('');
+
+    document.getElementById('import-preview').style.display = 'block';
+    document.getElementById('import-confirm-btn').style.display = newCount > 0 ? 'inline-block' : 'none';
+    document.getElementById('import-confirm-btn').textContent = `Import ${newCount} New Student${newCount !== 1 ? 's' : ''}`;
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function confirmImport() {
+  const toImport = _importRows.filter(r => !r.isDuplicate);
+  if (!toImport.length) return;
+  const btn = document.getElementById('import-confirm-btn');
+  btn.disabled = true; btn.textContent = 'Importing…';
+  let imported = 0;
+  for (const r of toImport) {
+    const userId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : genId();
+    const student = { id: userId, name: r.name, email: r.email, username: r.username,
+      password: r.password, phone: r.phone, role: 'student', avatar: '👩‍🎓',
+      isActive: true, createdAt: new Date().toISOString() };
+    dbSave(DB.USERS, student);
+    if (r.course) enrollStudent(userId, r.course.id);
+    try {
+      await _sb.from('users').insert({ id: userId, name: r.name, email: r.email,
+        username: r.username, password: r.password, phone: r.phone,
+        role: 'student', avatar: '👩‍🎓', is_active: true });
+      if (r.course) await _sb.from('enrollments').insert({
+        id: genId(), student_id: userId, course_id: r.course.id,
+        progress: 0, status: 'active', fee_status: 'pending' });
+    } catch(e) { /* saved locally */ }
+    imported++;
+  }
+  closeModal('import-modal');
+  document.getElementById('import-file').value = '';
+  document.getElementById('import-preview').style.display = 'none';
+  _importRows = [];
+  renderStudents();
+  showToast(`✅ ${imported} students imported successfully — duplicates were skipped`, 'success');
+  btn.disabled = false;
 }
 
 function openResetPassword(id, name) {
