@@ -273,24 +273,24 @@ function initSeedData() {
   const users = [
     {
       id: 'u1', name: 'Admin User', email: 'admin@ansha.edu', password: 'admin123',
-      role: 'admin', avatar: '👨‍💼', phone: '+92-300-1234567', createdAt: '2024-01-01T00:00:00Z'
+      role: 'admin', avatar: '👨‍💼', phone: '+91-98765-43210', createdAt: '2024-01-01T00:00:00Z'
     },
     {
       id: 'u2', name: 'Fatima Malik', email: 'fatima@ansha.edu', password: 'teacher123',
-      role: 'teacher', avatar: '👩‍🏫', phone: '+92-301-2345678',
+      role: 'teacher', avatar: '👩‍🏫', phone: '+91-98765-43211',
       qualification: 'M.Ed Montessori', experience: '8 years', createdAt: '2024-01-05T00:00:00Z'
     },
     {
       id: 'u3', name: 'Zainab Ahmed', email: 'zainab@ansha.edu', password: 'teacher123',
-      role: 'teacher', avatar: '👩‍🏫', phone: '+92-302-3456789',
+      role: 'teacher', avatar: '👩‍🏫', phone: '+91-98765-43212',
       qualification: 'B.Ed, TEFL Certified', experience: '5 years', createdAt: '2024-01-08T00:00:00Z'
     },
     {
       id: 'u4', name: 'Ayesha Khan', email: 'ayesha@student.edu', password: 'student123',
-      role: 'student', avatar: '👩‍🎓', phone: '+92-303-4567890',
+      role: 'student', avatar: '👩‍🎓', phone: '+91-98765-43213',
       dob: '2000-05-15', cnic: '35202-1234567-8', gender: 'Female',
       address: 'House 12, Street 4, Gulberg, Lahore',
-      fatherName: 'Muhammad Khan', guardianPhone: '+92-300-9876543',
+      fatherName: 'Muhammad Khan', guardianPhone: '+91-98765-43214',
       createdAt: '2024-02-01T00:00:00Z'
     }
   ];
@@ -506,7 +506,7 @@ function initSeedData() {
     {
       id: 'adm1', studentName: 'Ayesha Khan', fatherName: 'Muhammad Khan',
       dob: '2000-05-15', cnic: '35202-1234567-8', gender: 'Female',
-      phone: '+92-303-4567890', email: 'ayesha@student.edu',
+      phone: '+91-98765-43213', email: 'ayesha@student.edu',
       address: 'House 12, Street 4, Gulberg, Lahore',
       course: 'c1', appliedAt: '2024-01-28T00:00:00Z',
       status: 'approved', notes: 'Excellent academic background', linkedUserId: 'u4'
@@ -514,7 +514,7 @@ function initSeedData() {
     {
       id: 'adm2', studentName: 'Sara Riaz', fatherName: 'Riaz Ahmed',
       dob: '1999-11-20', cnic: '35202-7654321-0', gender: 'Female',
-      phone: '+92-304-5678901', email: 'sara.riaz@gmail.com',
+      phone: '+91-98765-43215', email: 'sara.riaz@gmail.com',
       address: 'House 5, Model Town, Lahore',
       course: 'c2', appliedAt: '2024-02-10T00:00:00Z',
       status: 'pending', notes: '', linkedUserId: null

@@ -161,7 +161,7 @@ function populateMonthFilter() {
   document.getElementById('filter-month').innerHTML = '<option value="">All Months</option>' +
     months.map(m => {
       const d = new Date(m + '-01');
-      return `<option value="${m}">${d.toLocaleDateString('en-PK', { month: 'long', year: 'numeric' })}</option>`;
+      return `<option value="${m}">${d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</option>`;
     }).join('');
 }
 
