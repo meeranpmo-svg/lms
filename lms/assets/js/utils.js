@@ -258,6 +258,7 @@ function buildSidebar(user) {
     <a href="dashboard.html"    class="nav-item"><span class="nav-icon"><i class="fa-solid fa-gauge-high"></i></span> Dashboard</a>
     <a href="teachers.html"     class="nav-item"><span class="nav-icon"><i class="fa-solid fa-chalkboard-user"></i></span> Teachers</a>
     <div class="nav-section-title">Students</div>
+    <a href="students.html"     class="nav-item"><span class="nav-icon"><i class="fa-solid fa-users"></i></span> Manage Students</a>
     <a href="student-info.html" class="nav-item"><span class="nav-icon"><i class="fa-solid fa-id-card"></i></span> Student Information</a>
     <a href="admission.html"    class="nav-item"><span class="nav-icon"><i class="fa-solid fa-file-circle-plus"></i></span> Admission</a>
     <a href="attendance.html"   class="nav-item"><span class="nav-icon"><i class="fa-solid fa-clipboard-check"></i></span> Attendance</a>
