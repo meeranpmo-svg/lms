@@ -160,6 +160,28 @@
   </div>
 </div>
 
+<!-- Reset Password Modal -->
+<div class="modal-backdrop" id="reset-pw-modal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h3>🔑 Reset Password</h3>
+      <button class="modal-close" onclick="closeModal('reset-pw-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="text-sm text-muted mb-4">Set a new password for <strong id="reset-pw-name"></strong></p>
+      <input type="hidden" id="reset-pw-id">
+      <div class="form-group">
+        <label class="form-label">New Password *</label>
+        <input type="text" id="reset-pw-val" class="form-control" placeholder="Enter new password (min 6 chars)">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('reset-pw-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="doResetPassword()">Save New Password</button>
+    </div>
+  </div>
+</div>
+
 <!-- Student Detail Modal -->
 <div class="modal-backdrop" id="student-detail-modal">
   <div class="modal" style="max-width:640px;">
@@ -273,6 +295,7 @@ function renderStudents() {
       <td>
         <div class="flex gap-2" style="flex-wrap:wrap;">
           <button class="btn btn-outline btn-sm" onclick='viewStudent("${s.id}")'>View</button>
+          <button class="btn btn-ghost btn-sm" onclick="openResetPassword('${s.id}','${s.name.replace(/'/g,"\\'")}')">🔑 Reset</button>
           ${toggleBtn}
           <button class="btn btn-danger btn-sm" onclick="removeStudent('${s.id}', '${s.name}')">Remove</button>
         </div>
@@ -488,6 +511,34 @@ function exportExcel() {
   const date = new Date().toISOString().split('T')[0];
   XLSX.writeFile(wb, `Ansha-Students-${date}.xlsx`);
   showToast(`✅ Exported ${rows.length} students to Excel`, 'success');
+}
+
+function openResetPassword(id, name) {
+  document.getElementById('reset-pw-id').value = id;
+  document.getElementById('reset-pw-name').textContent = name;
+  document.getElementById('reset-pw-val').value = '';
+  openModal('reset-pw-modal');
+}
+
+async function doResetPassword() {
+  const id   = document.getElementById('reset-pw-id').value;
+  const pass = document.getElementById('reset-pw-val').value.trim();
+  if (!pass || pass.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
+
+  // Update localStorage
+  const users = dbGet(DB.USERS);
+  const student = users.find(u => u.id === id);
+  if (!student) return;
+  student.password = pass;
+  dbSet(DB.USERS, users);
+
+  // Sync to Supabase
+  try {
+    await _sb.from('users').update({ password: pass }).eq('id', id);
+  } catch(e) { /* local update already done */ }
+
+  closeModal('reset-pw-modal');
+  showToast(`✅ Password reset for ${student.name}`, 'success');
 }
 
 function removeStudent(id, name) {
