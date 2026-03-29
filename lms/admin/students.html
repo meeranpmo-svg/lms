@@ -41,25 +41,37 @@
         </div>
       </div>
 
-      <!-- Filter Bar -->
-      <div class="filter-bar">
-        <div class="search-input">
-          <span>🔍</span>
-          <input type="text" id="search-input" placeholder="Search by name or email…">
+      <!-- Advanced Search Bar -->
+      <div style="background:#fff;border-radius:12px;padding:16px 20px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+          <div class="search-input" style="flex:1;min-width:220px;">
+            <span>🔍</span>
+            <input type="text" id="search-input" placeholder="Search name, email, username, phone, course…" oninput="renderStudents()">
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="clearAllFilters()" style="white-space:nowrap;">✕ Clear All</button>
         </div>
-        <select class="form-control" id="filter-course" style="width:auto;min-width:180px;">
-          <option value="">All Courses</option>
-        </select>
-        <select class="form-control" id="filter-fee" style="width:auto;min-width:130px;">
-          <option value="">All Fee Status</option>
-          <option value="paid">Paid</option>
-          <option value="pending">Pending</option>
-        </select>
-        <select class="form-control" id="filter-status" style="width:auto;min-width:130px;">
-          <option value="">All Status</option>
-          <option value="active">✅ Active</option>
-          <option value="inactive">🚫 Inactive</option>
-        </select>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <select class="form-control" id="filter-course" style="width:auto;min-width:180px;">
+            <option value="">📚 All Courses</option>
+          </select>
+          <select class="form-control" id="filter-fee" style="width:auto;min-width:140px;">
+            <option value="">💰 All Fee Status</option>
+            <option value="paid">✅ Paid</option>
+            <option value="pending">⏳ Pending</option>
+          </select>
+          <select class="form-control" id="filter-status" style="width:auto;min-width:140px;">
+            <option value="">👤 All Status</option>
+            <option value="active">✅ Active</option>
+            <option value="inactive">🚫 Inactive</option>
+          </select>
+          <select class="form-control" id="filter-new" style="width:auto;min-width:150px;">
+            <option value="">📅 All Time</option>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+          </select>
+          <span id="search-result-count" class="text-sm text-muted" style="margin-left:4px;"></span>
+        </div>
       </div>
 
       <!-- Bulk Action Bar -->
@@ -249,7 +261,24 @@ function renderStudents() {
   if (statusFilter === 'inactive') filtered = filtered.filter(s => s.isActive === false);
 
   const searchQ = (document.getElementById('search-input').value || '').toLowerCase();
-  if (searchQ) filtered = filtered.filter(s => s.name.toLowerCase().includes(searchQ) || s.email.toLowerCase().includes(searchQ));
+  const filterNew = document.getElementById('filter-new').value;
+  const now = Date.now();
+  if (filterNew === 'today') filtered = filtered.filter(s => new Date(s.createdAt).toDateString() === new Date().toDateString());
+  else if (filterNew === 'week')  filtered = filtered.filter(s => now - new Date(s.createdAt) < 7 * 864e5);
+  else if (filterNew === 'month') filtered = filtered.filter(s => now - new Date(s.createdAt) < 30 * 864e5);
+  if (searchQ) {
+    const courses = dbGet(DB.COURSES);
+    filtered = filtered.filter(s => {
+      const studentEnrolls = enrollments.filter(e => e.studentId === s.id);
+      const courseNames = studentEnrolls.map(e => { const c = courses.find(x => x.id === e.courseId); return c ? c.title.toLowerCase() : ''; }).join(' ');
+      return s.name.toLowerCase().includes(searchQ)
+          || (s.email || '').toLowerCase().includes(searchQ)
+          || (s.username || '').toLowerCase().includes(searchQ)
+          || (s.phone || '').replace(/\D/g,'').includes(searchQ.replace(/\D/g,''))
+          || courseNames.includes(searchQ);
+    });
+  }
+  document.getElementById('search-result-count').textContent = filtered.length + ' student' + (filtered.length !== 1 ? 's' : '') + ' found';
 
   // Sort newest first
   filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
@@ -307,10 +336,17 @@ function renderStudents() {
 }
 
 function setupSearch() {
-  document.getElementById('search-input').addEventListener('input', renderStudents);
-  document.getElementById('filter-course').addEventListener('change', renderStudents);
-  document.getElementById('filter-fee').addEventListener('change', renderStudents);
-  document.getElementById('filter-status').addEventListener('change', renderStudents);
+  ['filter-course','filter-fee','filter-status','filter-new'].forEach(id =>
+    document.getElementById(id).addEventListener('change', renderStudents));
+}
+
+function clearAllFilters() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('filter-course').value = '';
+  document.getElementById('filter-fee').value = '';
+  document.getElementById('filter-status').value = '';
+  document.getElementById('filter-new').value = '';
+  renderStudents();
 }
 
 function addStudent() {
