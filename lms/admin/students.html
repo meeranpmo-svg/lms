@@ -139,7 +139,7 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Phone Number</label>
-          <input type="tel" id="s-phone" class="form-control" placeholder="+92-300-0000000">
+          <input type="tel" id="s-phone" class="form-control" placeholder="+91-XXXXX-XXXXX">
         </div>
         <div class="form-group">
           <label class="form-label">Password *</label>
@@ -493,7 +493,7 @@ function exportExcel() {
       'Progress (%)':   avgProgress,
       'Fee Status':     feeStatus,
       'Account Status': s.isActive === false ? 'Inactive' : 'Active',
-      'Joined Date':    s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-PK') : '',
+      'Joined Date':    s.createdAt ? new Date(s.createdAt).toLocaleDateString('en-IN') : '',
     };
   });
 
