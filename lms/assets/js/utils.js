@@ -329,6 +329,9 @@ function buildSidebar(user) {
       <button class="logout-btn" onclick="logout()">
         <i class="fa-solid fa-right-from-bracket"></i> Logout
       </button>
+      <div style="font-size:0.68rem;color:#94a3b8;text-align:center;margin-top:10px;line-height:1.5;padding:0 8px;">
+        © 2026 Inspireway Education Services<br>Private Limited
+      </div>
     </div>`;
 }
 
