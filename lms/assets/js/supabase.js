@@ -251,7 +251,7 @@ async function sbSyncRecordingsToLocal() {
 
 /* ── Push all local seeded recordings to Supabase (admin only, once) ── */
 async function sbSeedRecordingsToSupabase() {
-  if (localStorage.getItem('lms_recordings_sb_seeded')) return;
+  if (localStorage.getItem('lms_recordings_sb_seeded_v2')) return;
   const recs = JSON.parse(localStorage.getItem('lms_recordings') || '[]');
   if (!recs.length) return;
   const rows = recs.map(r => ({
@@ -261,7 +261,7 @@ async function sbSeedRecordingsToSupabase() {
   }));
   const { error } = await _sb.from('recordings').upsert(rows, { onConflict: 'id' });
   if (!error) {
-    localStorage.setItem('lms_recordings_sb_seeded', 'true');
+    localStorage.setItem('lms_recordings_sb_seeded_v2', 'true');
     console.log('✅ Seeded ' + recs.length + ' recordings to Supabase');
   }
 }
