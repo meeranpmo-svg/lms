@@ -41,9 +41,30 @@ const courseId = params.get('course');
 let currentLessonId = params.get('lesson') || null;
 let quizState = { quiz: null, answers: {}, currentQ: 0, timer: null, timeLeft: 0 };
 
-if (user && courseId) initCoursePage();
+// If no courseId in URL, use student's first enrolled course
+if (user) {
+  const resolvedCourse = courseId || (() => {
+    const enr = getStudentEnrollments(user.id);
+    return enr.length ? enr[0].courseId : null;
+  })();
+  if (resolvedCourse) {
+    // Update URL silently so bookmarks work
+    if (!courseId) history.replaceState(null,'',`lesson.html?course=${resolvedCourse}`);
+    window._courseId = resolvedCourse;
+    initCoursePage(resolvedCourse);
+  } else {
+    document.getElementById('course-title').textContent = 'No courses enrolled';
+    document.getElementById('main-content-area').innerHTML = `
+      <div class="empty-state" style="margin-top:3rem;">
+        <div class="empty-icon">📚</div>
+        <h3>You are not enrolled in any course yet</h3>
+        <a href="courses.html" class="btn btn-primary mt-4">Browse Courses</a>
+      </div>`;
+  }
+}
 
-function initCoursePage() {
+function initCoursePage(cId) {
+  const courseId = cId || window._courseId || params.get('course');
   const course = dbGetOne(DB.COURSES, courseId);
   if (!course) { document.getElementById('course-title').textContent = 'Course not found'; return; }
 
