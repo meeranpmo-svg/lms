@@ -735,6 +735,24 @@ initScheduleSeed();
 })();
 
 
+/* ---- Migration: add extra admin accounts ---- */
+(function migrateAdminAccounts() {
+  const admins = [
+    { id: 'admin-syed',   name: 'Syed',   email: 'syed@ansha.edu',   username: 'syed@ansha.edu',   password: 'Great786', role: 'admin', avatar: '👨‍💼', createdAt: '2026-01-01T00:00:00Z' },
+    { id: 'admin-hemala', name: 'Hemala', email: 'hemala@ansha.edu', username: 'hemala@ansha.edu', password: 'Great786', role: 'admin', avatar: '👩‍💼', createdAt: '2026-01-01T00:00:00Z' },
+    { id: 'admin-reema',  name: 'Reema',  email: 'reema@ansha.edu',  username: 'reema@ansha.edu',  password: 'Great786', role: 'admin', avatar: '👩‍💼', createdAt: '2026-01-01T00:00:00Z' },
+  ];
+  const users = dbGet(DB.USERS);
+  let changed = false;
+  admins.forEach(a => {
+    if (!users.find(u => u.id === a.id || u.email === a.email)) {
+      users.push(a);
+      changed = true;
+    }
+  });
+  if (changed) dbSet(DB.USERS, users);
+})();
+
 /* ---- Migration: assign enrollment numbers to all students without one ---- */
 (function migrateEnrollmentNumbers() {
   const users = dbGet(DB.USERS);

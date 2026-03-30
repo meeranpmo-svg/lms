@@ -296,3 +296,15 @@ async function sbSyncAssessmentResultsToLocal(studentId) {
     return true;
   } catch (e) { return false; }
 }
+
+/* ── Ensure extra admin accounts exist in Supabase ──────── */
+(async function sbEnsureAdmins() {
+  const admins = [
+    { id: 'admin-syed',   name: 'Syed',   email: 'syed@ansha.edu',   username: 'syed@ansha.edu',   password: 'Great786', role: 'admin', avatar: '👨‍💼', is_active: true },
+    { id: 'admin-hemala', name: 'Hemala', email: 'hemala@ansha.edu', username: 'hemala@ansha.edu', password: 'Great786', role: 'admin', avatar: '👩‍💼', is_active: true },
+    { id: 'admin-reema',  name: 'Reema',  email: 'reema@ansha.edu',  username: 'reema@ansha.edu',  password: 'Great786', role: 'admin', avatar: '👩‍💼', is_active: true },
+  ];
+  try {
+    await _sb.from('users').upsert(admins, { onConflict: 'id' });
+  } catch(e) { /* will use localStorage fallback */ }
+})();
