@@ -134,14 +134,14 @@ if (user) renderPage();
 function renderPage() {
   document.getElementById('welcome-msg').textContent = `Welcome back, ${user.name.split(' ')[0]}! 👋`;
   document.getElementById('user-name').textContent = user.name;
-  renderStats();
-  renderScheduleBanner();
-  renderEnrolledCourses();
-  renderAssignments();
-  renderNotices();
-  renderFeeAlert();
-  renderFeeQuick();
-  renderCertificate();
+  try { renderStats(); } catch(e) { console.warn('renderStats', e); }
+  try { renderScheduleBanner(); } catch(e) { console.warn('renderScheduleBanner', e); }
+  try { renderEnrolledCourses(); } catch(e) { console.warn('renderEnrolledCourses', e); }
+  try { renderAssignments(); } catch(e) { console.warn('renderAssignments', e); }
+  try { renderNotices(); } catch(e) { console.warn('renderNotices', e); }
+  try { renderFeeAlert(); } catch(e) { console.warn('renderFeeAlert', e); }
+  try { renderFeeQuick(); } catch(e) { console.warn('renderFeeQuick', e); }
+  try { renderCertificate(); } catch(e) { console.warn('renderCertificate', e); }
 }
 
 /* ── Certificate helpers ── */
