@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Fees — Ansha Montessori LMS</title>
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/dashboard.css">
+  <link rel="stylesheet" href="../assets/css/components.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="header-left"><span class="page-title">My Fees</span></div>
+      <div class="header-right"><span id="user-name" class="text-sm font-medium"></span></div>
+    </header>
+    <main class="page-content">
+      <div class="page-header">
+        <div>
+          <h1>💰 My Fee Details</h1>
+          <p>View your payment schedule and installment status</p>
+        </div>
+      </div>
+      <div id="fee-summary-stats" class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:var(--space-5);"></div>
+      <div id="fees-container"></div>
+    </main>
+  </div>
+</div>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/utils.js"></script>
+<script>
+const user = initPage('student');
+if (user) renderFees();
+
+function renderFees() {
+  const enrollments = getStudentEnrollments(user.id);
+  if (!enrollments.length) {
+    document.getElementById('fees-container').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">💰</div>
+        <h3>No enrolled courses</h3>
+        <p>Enroll in a course to see your fee details</p>
+      </div>`;
+    return;
+  }
+
+  let totalFeeAll = 0, totalPaidAll = 0;
+  const cards = enrollments.map(e => {
+    const course = dbGetOne(DB.COURSES, e.courseId);
+    if (!course) return '';
+    const sched = computeFeeSchedule(user.id, e.courseId);
+    if (!sched) return '';
+    const { feePlan, totalFee, paidAmt, balance, numInstall, schedule } = sched;
+    totalFeeAll += totalFee;
+    totalPaidAll += paidAmt;
+
+    const planLabels = { full: '💳 Full Payment', '2x': '📅 2 Installments', '4x': '📆 4 Installments' };
+    const planLabel = planLabels[feePlan.type] || 'Full Payment';
+    const pct = totalFee > 0 ? Math.round((paidAmt / totalFee) * 100) : 0;
+    const feeStatusColor = balance === 0 ? '#16a34a' : paidAmt > 0 ? '#d97706' : '#dc2626';
+    const feeStatusText  = balance === 0 ? '✅ Fully Paid' : paidAmt > 0 ? '⏳ Partially Paid' : '🔴 Pending';
+
+    const installRows = schedule.map(inst => {
+      if (inst.status === 'paid') {
+        return `
+        <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #f1f5f9;">
+          <div style="width:32px;height:32px;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;">✅</div>
+          <div style="flex:1;">
+            <div style="font-weight:600;font-size:0.9rem;">Installment ${inst.no}${numInstall > 1 ? ' of ' + numInstall : ''}</div>
+            <div style="font-size:0.78rem;color:#64748b;">Paid on ${formatDate(inst.paidAt)} · Receipt: ${inst.receiptNo || '—'}</div>
+          </div>
+          <div style="font-weight:700;color:#16a34a;font-size:0.95rem;">₹${(inst.amount||0).toLocaleString('en-IN')}</div>
+        </div>`;
+      } else {
+        return `
+        <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #f1f5f9;">
+          <div style="width:32px;height:32px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;">⏳</div>
+          <div style="flex:1;">
+            <div style="font-weight:600;font-size:0.9rem;">Installment ${inst.no}${numInstall > 1 ? ' of ' + numInstall : ''}</div>
+            <div style="font-size:0.78rem;color:#dc2626;font-weight:600;">PENDING — Please pay to admin</div>
+          </div>
+          <div style="font-weight:700;color:#dc2626;font-size:0.95rem;">₹${(inst.amount||0).toLocaleString('en-IN')}</div>
+        </div>`;
+      }
+    }).join('');
+
+    return `
+    <div class="card mb-5">
+      <div style="padding:20px 24px;background:linear-gradient(135deg,${course.color||'#1a7a7a'}18,${course.color||'#1a7a7a'}08);border-bottom:1px solid #f1f5f9;border-radius:calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="width:52px;height:52px;background:${course.color||'#1a7a7a'};border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;">${course.icon||'📚'}</div>
+            <div>
+              <div style="font-weight:700;font-size:1rem;">${course.title}</div>
+              <div style="font-size:0.8rem;color:#64748b;margin-top:2px;">${planLabel} &nbsp;·&nbsp; <span style="color:${feeStatusColor};font-weight:700;">${feeStatusText}</span></div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:1.5rem;font-weight:800;color:${feeStatusColor};">₹${balance.toLocaleString('en-IN')}</div>
+            <div style="font-size:0.75rem;color:#64748b;">Balance Remaining</div>
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:#64748b;margin-bottom:4px;">
+            <span>Paid: <strong style="color:#16a34a;">₹${paidAmt.toLocaleString('en-IN')}</strong></span>
+            <span>Total Fee: <strong>₹${totalFee.toLocaleString('en-IN')}</strong></span>
+            <span>${pct}% paid</span>
+          </div>
+          <div style="height:8px;background:#e2e8f0;border-radius:99px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:${balance===0?'#16a34a':'#f59e0b'};border-radius:99px;transition:width .4s;"></div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:8px 24px 16px;">
+        <div style="font-size:0.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin:12px 0 4px;">Payment Schedule</div>
+        ${installRows}
+      </div>
+      ${balance > 0 ? `
+      <div style="padding:12px 24px 16px;">
+        <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:12px 16px;font-size:.85rem;color:#9a3412;">
+          ⚠️ <strong>₹${balance.toLocaleString('en-IN')} is due.</strong> Please contact admin or pay at the institute.
+          <div style="margin-top:4px;font-size:0.78rem;">WhatsApp: <strong>+91-98765-43210</strong></div>
+        </div>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('fees-container').innerHTML = cards || '<p class="text-muted text-center">No fee data available.</p>';
+
+  // Summary stats
+  const totalBalance = totalFeeAll - totalPaidAll;
+  const allEnrolls = enrollments.length;
+  const pendingCount = enrollments.filter(e => {
+    const s = computeFeeSchedule(user.id, e.courseId);
+    return s && s.balance > 0;
+  }).length;
+  document.getElementById('fee-summary-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-icon green">💰</div><div class="stat-info"><div class="stat-value">₹${totalPaidAll.toLocaleString('en-IN')}</div><div class="stat-label">Total Paid</div></div></div>
+    <div class="stat-card"><div class="stat-icon gold">⏳</div><div class="stat-info"><div class="stat-value">₹${totalBalance.toLocaleString('en-IN')}</div><div class="stat-label">Balance Due</div></div></div>
+    <div class="stat-card"><div class="stat-icon teal">📚</div><div class="stat-info"><div class="stat-value">${allEnrolls}</div><div class="stat-label">Courses</div></div></div>
+    <div class="stat-card"><div class="stat-icon ${pendingCount > 0 ? 'red' : 'green'}">📋</div><div class="stat-info"><div class="stat-value">${pendingCount}</div><div class="stat-label">Pending Fees</div></div></div>`;
+}
+</script>
+</body>
+</html>

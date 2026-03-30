@@ -128,6 +128,21 @@
         <label class="form-label">Notes</label>
         <input type="text" id="p-notes" class="form-control" placeholder="Optional notes">
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Fee Plan</label>
+          <select id="p-plan" class="form-control" onchange="updatePlanFields()">
+            <option value="full">💳 Full Payment (1×)</option>
+            <option value="2x">📅 2 Installments</option>
+            <option value="4x">📆 4 Installments</option>
+          </select>
+        </div>
+        <div class="form-group" id="install-no-grp" style="display:none;">
+          <label class="form-label">Installment No.</label>
+          <select id="p-installment-no" class="form-control"></select>
+        </div>
+      </div>
+      <div id="plan-info" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px 14px;font-size:.84rem;color:#166534;margin-bottom:4px;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('add-payment-modal')">Cancel</button>
@@ -172,6 +187,32 @@ function populateCourses() {
     return c ? `<option value="${c.id}" data-fee="${c.fee}">${c.icon} ${c.title} — ${formatCurrency(c.fee)}</option>` : '';
   }).join('');
   document.getElementById('p-course').innerHTML = '<option value="">— Select Course —</option>' + (courseOpts || allCourses.map(c => `<option value="${c.id}" data-fee="${c.fee}">${c.icon} ${c.title}</option>`).join(''));
+  updatePlanFields();
+}
+
+function updatePlanFields() {
+  const plan = document.getElementById('p-plan').value;
+  const courseId = document.getElementById('p-course').value;
+  const course = courseId ? dbGetOne(DB.COURSES, courseId) : null;
+  const noGrp = document.getElementById('install-no-grp');
+  const infoDiv = document.getElementById('plan-info');
+  if (plan === 'full') {
+    noGrp.style.display = 'none';
+    infoDiv.style.display = 'none';
+    if (course) document.getElementById('p-amount').value = course.fee;
+  } else {
+    const parts = plan === '2x' ? 2 : 4;
+    noGrp.style.display = '';
+    document.getElementById('p-installment-no').innerHTML =
+      Array.from({length: parts}, (_, i) =>
+        `<option value="${i+1}">Installment ${i+1} of ${parts}</option>`).join('');
+    if (course) {
+      const instAmt = Math.round(course.fee / parts);
+      document.getElementById('p-amount').value = instAmt;
+      infoDiv.style.display = '';
+      infoDiv.innerHTML = `💡 Total course fee: <strong>₹${course.fee.toLocaleString('en-IN')}</strong> &divide; ${parts} installments = <strong>₹${instAmt.toLocaleString('en-IN')}</strong> each`;
+    }
+  }
 }
 
 function renderStats() {
@@ -200,8 +241,17 @@ function renderPendingAlerts() {
     const s = dbGetOne(DB.USERS, e.studentId);
     const c = dbGetOne(DB.COURSES, e.courseId);
     if (!s || !c) return '';
+    const paidPayments = dbGet(DB.PAYMENTS).filter(p => p.studentId === e.studentId && p.courseId === e.courseId);
+    const feePlan = e.feePlan || { type: 'full', totalFee: c.fee };
+    const numInstall = feePlan.type === '2x' ? 2 : feePlan.type === '4x' ? 4 : 1;
+    const paidAmt = paidPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    const balance = Math.max(0, (feePlan.totalFee || c.fee) - paidAmt);
+    const planLabel = feePlan.type === 'full' ? 'Full' : feePlan.type === '2x' ? '2 Installments' : '4 Installments';
     return `<div class="flex items-center justify-between" style="padding:var(--space-2) 0;border-bottom:1px solid var(--gray-100);">
-      <span class="text-sm"><strong>${s.name}</strong> — ${c.icon} ${c.title} (${formatCurrency(c.fee)})</span>
+      <div>
+        <span class="text-sm"><strong>${s.name}</strong> — ${c.icon} ${c.title}</span>
+        <div class="text-xs text-muted">${planLabel} · Paid: ${formatCurrency(paidAmt)} · <strong style="color:#dc2626;">Balance: ${formatCurrency(balance)}</strong> · ${paidPayments.length}/${numInstall} installments</div>
+      </div>
       <button class="btn btn-success btn-sm" onclick="quickMarkPaid('${e.id}')">✓ Mark Paid</button>
     </div>`;
   }).join('');
@@ -250,7 +300,7 @@ function renderTable() {
       <td class="font-mono text-sm">${p.receiptNo || '—'}</td>
       <td><div class="font-medium text-sm">${s.name}</div><div class="text-xs text-muted">${s.email}</div></td>
       <td class="text-sm">${c.icon} ${c.title}</td>
-      <td class="font-bold text-sm" style="color:var(--success);">${formatCurrency(p.amount)}</td>
+      <td class="font-bold text-sm" style="color:var(--success);">${formatCurrency(p.amount)}${p.installmentPlan && p.installmentPlan !== 'full' ? `<div class="text-xs text-muted">Inst. ${p.installmentNo} of ${p.installmentPlan === '2x' ? 2 : 4}</div>` : ''}</td>
       <td class="text-sm">${methodLabels[p.method] || p.method}</td>
       <td class="text-sm text-muted">${formatDate(p.paidAt)}</td>
       <td class="text-sm text-muted">${p.notes || '—'}</td>
@@ -266,32 +316,41 @@ function savePayment() {
   const amount    = parseFloat(document.getElementById('p-amount').value);
   const method    = document.getElementById('p-method').value;
   const date      = document.getElementById('p-date').value;
+  const plan      = document.getElementById('p-plan').value;
+  const installNo = plan !== 'full' ? parseInt(document.getElementById('p-installment-no').value) : 1;
   if (!studentId || !courseId || !amount || !date) { showToast('Student, course, amount and date are required', 'error'); return; }
 
   const receiptNo = document.getElementById('p-receipt').value.trim() || 'RCP-' + Date.now().toString().slice(-4);
   const payment = {
     id: genId(), studentId, courseId, amount, method, receiptNo,
     paidAt: new Date(date).toISOString(),
-    notes: document.getElementById('p-notes').value.trim()
+    notes: document.getElementById('p-notes').value.trim(),
+    installmentPlan: plan,
+    installmentNo: installNo
   };
   dbSave(DB.PAYMENTS, payment);
 
-  // Mark enrollment fee as paid
+  // Update enrollment fee plan + status
   const enrollment = getEnrollment(studentId, courseId);
+  const course = dbGetOne(DB.COURSES, courseId);
   if (enrollment) {
-    enrollment.feeStatus = 'paid';
+    const totalFee = course ? course.fee : amount;
+    enrollment.feePlan = { type: plan, totalFee };
+    const numInstall = plan === '2x' ? 2 : plan === '4x' ? 4 : 1;
+    const paidPayments = dbGet(DB.PAYMENTS).filter(p => p.studentId === studentId && p.courseId === courseId);
+    enrollment.feeStatus = paidPayments.length >= numInstall ? 'paid' : paidPayments.length > 0 ? 'partial' : 'pending';
     dbSave(DB.ENROLLMENTS, enrollment);
   }
 
   closeModal('add-payment-modal');
-  document.getElementById('p-student').value = '';
+  ['p-student','p-course','p-amount','p-receipt','p-notes'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('p-course').innerHTML = '<option value="">— Select Course —</option>';
-  document.getElementById('p-amount').value = '';
-  document.getElementById('p-receipt').value = '';
-  document.getElementById('p-notes').value = '';
+  document.getElementById('p-plan').value = 'full';
+  document.getElementById('install-no-grp').style.display = 'none';
+  document.getElementById('plan-info').style.display = 'none';
 
   renderStats(); renderPendingAlerts(); renderTable();
-  showToast(`Payment of ${formatCurrency(amount)} recorded — Receipt ${receiptNo}`, 'success');
+  showToast(`Payment of ₹${amount.toLocaleString('en-IN')} recorded — Receipt ${receiptNo}${plan !== 'full' ? ' (Installment ' + installNo + ')' : ''}`, 'success');
 }
 
 function printReceipt(paymentId) {

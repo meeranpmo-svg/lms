@@ -107,6 +107,35 @@ function enrollStudent(studentId, courseId) {
   return enrollment;
 }
 
+/* ---- Fee Plan helper ---- */
+function computeFeeSchedule(studentId, courseId) {
+  const enrollment = getEnrollment(studentId, courseId);
+  const course = dbGetOne(DB.COURSES, courseId);
+  if (!enrollment || !course) return null;
+  const payments = dbGet(DB.PAYMENTS)
+    .filter(p => p.studentId === studentId && p.courseId === courseId)
+    .sort((a, b) => new Date(a.paidAt) - new Date(b.paidAt));
+  const feePlan = enrollment.feePlan || { type: 'full', totalFee: course.fee || 0 };
+  const totalFee = feePlan.totalFee || course.fee || 0;
+  const numInstall = feePlan.type === '2x' ? 2 : feePlan.type === '4x' ? 4 : 1;
+  const installAmt = numInstall > 1 ? Math.round(totalFee / numInstall) : totalFee;
+  const paidAmt = payments.reduce((s, p) => s + (p.amount || 0), 0);
+  const balance = Math.max(0, totalFee - paidAmt);
+  const schedule = [];
+  for (let i = 1; i <= numInstall; i++) {
+    const pmt = payments.find(p => (p.installmentNo || 1) === i) || (payments[i - 1] || null);
+    const assigned = pmt && !payments.slice(0, i - 1).includes(pmt);
+    // Simple sequential assignment
+    const pmtSeq = payments[i - 1] || null;
+    if (pmtSeq) {
+      schedule.push({ no: i, amount: pmtSeq.amount, status: 'paid', paidAt: pmtSeq.paidAt, receiptNo: pmtSeq.receiptNo, paymentId: pmtSeq.id });
+    } else {
+      schedule.push({ no: i, amount: installAmt, status: 'pending' });
+    }
+  }
+  return { feePlan, totalFee, paidAmt, balance, numInstall, schedule };
+}
+
 /* ---- Progress helpers ---- */
 function markLessonComplete(studentId, lessonId) {
   const existing = dbGet(DB.PROGRESS).find(p => p.studentId === studentId && p.lessonId === lessonId);
@@ -679,6 +708,21 @@ initSeedData();
     }
   });
   if (changed > 0) { dbSet(DB.USERS, users); console.log(`✅ Updated ${changed} student usernames to full email`); }
+})();
+
+/* ---- Migration: set default feePlan for existing enrollments ---- */
+(function migrateFeeePlans() {
+  const enrollments = dbGet(DB.ENROLLMENTS);
+  const courses = dbGet(DB.COURSES);
+  let changed = false;
+  enrollments.forEach(e => {
+    if (!e.feePlan) {
+      const c = courses.find(x => x.id === e.courseId);
+      e.feePlan = { type: 'full', totalFee: c ? (c.fee || 0) : 0 };
+      changed = true;
+    }
+  });
+  if (changed) { dbSet(DB.ENROLLMENTS, enrollments); }
 })();
 
 /* ---- Assessment helpers ---- */
