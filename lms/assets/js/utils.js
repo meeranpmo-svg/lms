@@ -341,8 +341,26 @@ function initPage(role) {
   if (userNameEl) userNameEl.textContent = user.name;
   _initMobileNav(sidebar);
   _initHeaderControls(user);
-  _initMobileBottomNav(user);
+  _injectBackButton();
   return user;
+}
+
+function _injectBackButton() {
+  const headerLeft = document.querySelector('.header-left');
+  if (!headerLeft) return;
+  // Don't show back button on dashboard pages
+  const page = location.pathname.split('/').pop();
+  if (page === 'dashboard.html' || page === '') return;
+  if (document.getElementById('global-back-btn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'global-back-btn';
+  btn.title = 'Go Back';
+  btn.innerHTML = '<i class="fa-solid fa-arrow-left"></i>';
+  btn.style.cssText = 'background:none;border:1.5px solid #e2e8f0;border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#64748b;font-size:.9rem;flex-shrink:0;transition:all .15s;';
+  btn.onmouseover = () => { btn.style.background='#f1f5f9'; btn.style.color='#1e293b'; };
+  btn.onmouseout  = () => { btn.style.background='none';    btn.style.color='#64748b'; };
+  btn.onclick = () => history.length > 1 ? history.back() : location.href='dashboard.html';
+  headerLeft.prepend(btn);
 }
 
 function _initHeaderControls(user) {
@@ -443,46 +461,4 @@ function closeSidebar() {
   if (sb) sb.classList.remove('open');
   if (ov) ov.classList.remove('active');
   document.body.style.overflow = '';
-}
-
-/* ---- Mobile Bottom Navigation (student only) ---- */
-function _initMobileBottomNav(user) {
-  if (user.role !== 'student') return;
-  if (document.getElementById('mobile-bottom-nav')) return;
-
-  // Check if there's a live class today
-  const today = new Date().toISOString().split('T')[0];
-  const enrollments = typeof getStudentEnrollments !== 'undefined' ? getStudentEnrollments(user.id) : [];
-  const courseIds   = enrollments.map(e => e.courseId);
-  const todaySessions = typeof getScheduleSessions !== 'undefined'
-    ? getScheduleSessions().filter(s => s.date === today && courseIds.includes(s.courseId))
-    : [];
-  const hasLiveToday = todaySessions.length > 0;
-  const liveLink     = hasLiveToday ? todaySessions[0].link : null;
-
-  // Active page detection
-  const page = window.location.pathname.split('/').pop().replace('.html', '');
-  const isActive = p => page === p ? 'active' : '';
-
-  const nav = document.createElement('nav');
-  nav.id = 'mobile-bottom-nav';
-  nav.className = 'mobile-bottom-nav';
-  nav.innerHTML = `
-    <a href="dashboard.html" class="mob-nav-item ${isActive('dashboard')}">
-      <i class="fa-solid fa-house"></i><span>Home</span>
-    </a>
-    <a href="my-courses.html" class="mob-nav-item ${isActive('my-courses')}">
-      <i class="fa-solid fa-graduation-cap"></i><span>Courses</span>
-    </a>
-    <a href="${liveLink || 'schedule.html'}" ${liveLink ? 'target="_blank" rel="noopener"' : ''}
-       class="mob-nav-item live ${hasLiveToday ? 'has-class-today' : ''} ${isActive('schedule')}">
-      <i class="fa-solid fa-video"></i><span>${hasLiveToday ? '🔴 Join' : 'Live'}</span>
-    </a>
-    <a href="calendar.html" class="mob-nav-item ${isActive('calendar')}">
-      <i class="fa-solid fa-calendar-days"></i><span>Calendar</span>
-    </a>
-    <a href="profile.html" class="mob-nav-item ${isActive('profile')}">
-      <i class="fa-solid fa-user"></i><span>Profile</span>
-    </a>`;
-  document.body.appendChild(nav);
 }
