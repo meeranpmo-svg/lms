@@ -403,7 +403,10 @@ function addStudent() {
   const password = document.getElementById('s-password').value;
   const courseId = document.getElementById('s-course').value;
   if (!name || !email || !password) { showToast('Name, email, and password are required', 'error'); return; }
-  if (findUserByEmail(email)) { showToast('An account with this email already exists', 'error'); return; }
+  if (findUserByEmail(email)) { showToast('⛔ Duplicate — an account with this email already exists', 'error'); return; }
+  const uname = email.split('@')[0].replace(/[^a-z0-9]/gi,'').toLowerCase();
+  const usernameTaken = dbGet(DB.USERS).some(u => (u.username||'').toLowerCase() === uname);
+  if (usernameTaken) { showToast('⛔ Duplicate — username "' + uname + '" is already taken', 'error'); return; }
 
   const newStudent = { id: genId(), name, email, phone, password, role: 'student', avatar: '👩‍🎓', createdAt: new Date().toISOString() };
   dbSave(DB.USERS, newStudent);

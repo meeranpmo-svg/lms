@@ -341,7 +341,26 @@ function initPage(role) {
   if (userNameEl) userNameEl.textContent = user.name;
   _initMobileNav(sidebar);
   _initHeaderControls(user);
+  _injectBackButton();
   return user;
+}
+
+function _injectBackButton() {
+  const headerLeft = document.querySelector('.header-left');
+  if (!headerLeft) return;
+  // Don't show back button on dashboard pages
+  const page = location.pathname.split('/').pop();
+  if (page === 'dashboard.html' || page === '') return;
+  if (document.getElementById('global-back-btn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'global-back-btn';
+  btn.title = 'Go Back';
+  btn.innerHTML = '<i class="fa-solid fa-arrow-left"></i>';
+  btn.style.cssText = 'background:none;border:1.5px solid #e2e8f0;border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#64748b;font-size:.9rem;flex-shrink:0;transition:all .15s;';
+  btn.onmouseover = () => { btn.style.background='#f1f5f9'; btn.style.color='#1e293b'; };
+  btn.onmouseout  = () => { btn.style.background='none';    btn.style.color='#64748b'; };
+  btn.onclick = () => history.length > 1 ? history.back() : location.href='dashboard.html';
+  headerLeft.prepend(btn);
 }
 
 function _initHeaderControls(user) {

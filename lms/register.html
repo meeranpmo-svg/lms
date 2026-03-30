@@ -223,19 +223,30 @@ async function doRegister() {
     }
   } catch(e) { /* Supabase unreachable — local check was enough */ }
 
-  // Check duplicate email
+  // Check duplicate email — local first
   const existing = findUserByEmail(email);
   if (existing) {
     showAlert('An account with this email already exists. Please sign in.');
     btn.disabled = false; btn.textContent = 'Create Account & Access LMS'; return;
   }
 
+  // Check duplicate email AND username in Supabase (catches cross-device registrations)
+  btn.textContent = 'Checking for existing account…';
+  const username = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase();
+  try {
+    const { data: sbCheck } = await _sb.from('users').select('id,email,username')
+      .or(`email.eq.${email},username.eq.${username}`).limit(1);
+    if (sbCheck && sbCheck.length > 0) {
+      showAlert('An account with this email or username already exists. Please sign in.');
+      btn.disabled = false; btn.textContent = 'Create Account & Access LMS'; return;
+    }
+  } catch(e) { /* Supabase unreachable — proceed with local data */ }
+
   btn.textContent = 'Creating account…';
 
   try {
     // Use proper UUID so Supabase accepts the id column
     const userId   = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : genId();
-    const username = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase();
 
     const newUser = {
       id: userId, name, email,
