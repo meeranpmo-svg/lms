@@ -72,6 +72,19 @@ function getUsersByRole(role) {
   return dbGet(DB.USERS).filter(u => u.role === role);
 }
 
+/* ---- Enrollment Number helpers ---- */
+function getNextEnrollmentNo() {
+  const users = dbGet(DB.USERS);
+  let maxNum = 0;
+  users.forEach(u => {
+    if (u.enrollmentNo) {
+      const match = u.enrollmentNo.match(/(\d+)$/);
+      if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
+    }
+  });
+  return `ANSHA-2026-${String(maxNum + 1).padStart(3, '0')}`;
+}
+
 /* ---- Enrollment helpers ---- */
 function getEnrollment(studentId, courseId) {
   return dbGet(DB.ENROLLMENTS).find(e => e.studentId === studentId && e.courseId === courseId) || null;
@@ -629,6 +642,44 @@ initSeedData();
   console.log('✅ Seeded 27 Montessori class recordings');
 })();
 
+
+/* ---- Migration: assign enrollment numbers to all students without one ---- */
+(function migrateEnrollmentNumbers() {
+  const users = dbGet(DB.USERS);
+  const toAssign = users
+    .filter(u => u.role === 'student' && !u.enrollmentNo)
+    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+  if (!toAssign.length) return;
+
+  // Find highest existing number so we never overwrite
+  let maxNum = 0;
+  users.forEach(u => {
+    if (u.enrollmentNo) {
+      const m = u.enrollmentNo.match(/(\d+)$/);
+      if (m) maxNum = Math.max(maxNum, parseInt(m[1]));
+    }
+  });
+
+  toAssign.forEach((s, i) => {
+    s.enrollmentNo = `ANSHA-2026-${String(maxNum + i + 1).padStart(3, '0')}`;
+  });
+
+  dbSet(DB.USERS, users);
+  console.log(`✅ Enrollment numbers assigned to ${toAssign.length} students`);
+})();
+
+/* ---- Migration: set username = full email for students who have short username ---- */
+(function migrateUsernamesToEmail() {
+  const users = dbGet(DB.USERS);
+  let changed = 0;
+  users.forEach(u => {
+    if (u.role === 'student' && u.email && !(u.username || '').includes('@')) {
+      u.username = u.email;
+      changed++;
+    }
+  });
+  if (changed > 0) { dbSet(DB.USERS, users); console.log(`✅ Updated ${changed} student usernames to full email`); }
+})();
 
 /* ---- Assessment helpers ---- */
 function getAssessmentResult(studentId, assessmentId) {

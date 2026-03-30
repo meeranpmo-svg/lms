@@ -132,6 +132,7 @@
       <h2>Welcome to Ansha Montessori LMS!</h2>
       <p>Your student account has been created successfully. Save your login details below.</p>
       <div class="cred-box">
+        <div class="cred-row"><span class="cred-label">Enrollment No</span><span class="cred-value" id="s-enroll" style="color:#0d9488;"></span></div>
         <div class="cred-row"><span class="cred-label">Name</span><span class="cred-value" id="s-name"></span></div>
         <div class="cred-row"><span class="cred-label">Email / Username</span><span class="cred-value" id="s-email"></span></div>
         <div class="cred-row"><span class="cred-label">Password</span><span class="cred-value" id="s-pass"></span></div>
@@ -232,7 +233,7 @@ async function doRegister() {
 
   // Check duplicate email AND username in Supabase (catches cross-device registrations)
   btn.textContent = 'Checking for existing account…';
-  const username = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase();
+  const username = email; // full email (e.g. sara@ansha.edu) is the username
   try {
     const { data: sbCheck } = await _sb.from('users').select('id,email,username')
       .or(`email.eq.${email},username.eq.${username}`).limit(1);
@@ -248,11 +249,13 @@ async function doRegister() {
     // Use proper UUID so Supabase accepts the id column
     const userId   = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : genId();
 
+    const enrollmentNo = getNextEnrollmentNo();
     const newUser = {
       id: userId, name, email,
-      username: username || userId,
+      username: username || email,
       password: pass, role: 'student',
       phone, avatar: '👩‍🎓',
+      enrollmentNo,
       createdAt: new Date().toISOString()
     };
 
@@ -262,6 +265,7 @@ async function doRegister() {
       username: newUser.username,
       password: pass, role: 'student',
       phone, avatar: '👩‍🎓',
+      enrollment_no: enrollmentNo,
       is_active: true
     });
 
@@ -291,6 +295,7 @@ async function doRegister() {
 
     // Show success
     const course = dbGet(DB.COURSES).find(c => c.id === courseId);
+    document.getElementById('s-enroll').textContent  = enrollmentNo;
     document.getElementById('s-name').textContent    = name;
     document.getElementById('s-email').textContent   = email;
     document.getElementById('s-pass').textContent    = pass;
