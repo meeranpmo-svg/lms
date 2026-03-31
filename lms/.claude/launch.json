@@ -5,7 +5,7 @@
       "name": "LMS Server",
       "runtimeExecutable": "C:\\Program Files\\Git\\usr\\bin\\perl.exe",
       "runtimeArgs": ["C:\\Users\\Syed\\Desktop\\Montessori\\lms\\server.pl"],
-      "port": 8080
+      "port": 8090
     }
   ]
 }

@@ -3,41 +3,49 @@
 -- Run this in Supabase → SQL Editor
 -- ============================================================
 
--- 1. Allow anyone (anon) to INSERT a new student account
-CREATE POLICY IF NOT EXISTS "Allow public student registration"
+-- Drop existing policies first (ignore errors if they don't exist)
+DROP POLICY IF EXISTS "Allow public student registration" ON public.users;
+DROP POLICY IF EXISTS "Admin can read all users" ON public.users;
+DROP POLICY IF EXISTS "Allow public read for login" ON public.users;
+DROP POLICY IF EXISTS "Users can update own record" ON public.users;
+DROP POLICY IF EXISTS "Allow public enrollment on registration" ON public.enrollments;
+
+-- Enable RLS
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.enrollments ENABLE ROW LEVEL SECURITY;
+
+-- 1. Allow anyone to INSERT a new student account via registration
+CREATE POLICY "Allow public student registration"
   ON public.users
   FOR INSERT
   TO anon, authenticated
   WITH CHECK (role = 'student');
 
--- 2. Allow admin to read ALL users
-CREATE POLICY IF NOT EXISTS "Admin can read all users"
+-- 2. Allow anyone to read users (needed for login)
+CREATE POLICY "Allow public read for login"
   ON public.users
   FOR SELECT
-  TO authenticated
+  TO anon, authenticated
   USING (true);
 
--- 3. Allow anon to read users (for login check)
-CREATE POLICY IF NOT EXISTS "Allow public read for login"
-  ON public.users
-  FOR SELECT
-  TO anon
-  USING (true);
-
--- 4. Allow authenticated users to update their own record
-CREATE POLICY IF NOT EXISTS "Users can update own record"
+-- 3. Allow authenticated users to update any user (admin use)
+CREATE POLICY "Allow authenticated update"
   ON public.users
   FOR UPDATE
   TO authenticated
-  USING (id::text = current_setting('request.jwt.claims', true)::json->>'sub')
+  USING (true)
   WITH CHECK (true);
 
--- 5. Make sure RLS is enabled
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-
--- 6. Also allow anon INSERT to enrollments (for auto-enrollment on register)
-CREATE POLICY IF NOT EXISTS "Allow public enrollment on registration"
+-- 4. Allow anyone to insert enrollments (auto-enroll on register)
+CREATE POLICY "Allow public enrollment on registration"
   ON public.enrollments
   FOR INSERT
   TO anon, authenticated
   WITH CHECK (true);
+
+-- 5. Allow anyone to read enrollments
+CREATE POLICY "Allow public read enrollments"
+  ON public.enrollments
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
