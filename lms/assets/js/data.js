@@ -814,6 +814,54 @@ initScheduleSeed();
   if (changed) { dbSet(DB.ENROLLMENTS, enrollments); }
 })();
 
+/* ---- Migration: ensure core lessons are always present (fixes "empty lessons" on returning browsers) ---- */
+(function migrateLessons() {
+  const coreLessons = [
+    { id: 'l1',  courseId: 'c1', module: 'Montessori Philosophy & Principles', title: 'Introduction to Montessori Method', type: 'video', url: 'https://www.youtube.com/embed/kfLLQCEB5sg', duration: '18 min', order: 1 },
+    { id: 'l2',  courseId: 'c1', module: 'Montessori Philosophy & Principles', title: 'Core Principles of Dr. Maria Montessori', type: 'text', content: '<h3>Core Principles</h3><p>The Montessori method is based on six core principles:</p><ol><li><strong>Respect for the child</strong></li><li><strong>The absorbent mind</strong></li><li><strong>Sensitive periods</strong></li><li><strong>The prepared environment</strong></li><li><strong>Auto-education</strong></li><li><strong>The role of the teacher</strong></li></ol>', duration: '15 min', order: 2 },
+    { id: 'l3',  courseId: 'c1', module: 'Prepared Environment', title: 'Setting Up a Montessori Classroom', type: 'video', url: 'https://www.youtube.com/embed/9X68dm92HVI', duration: '22 min', order: 3 },
+    { id: 'l4',  courseId: 'c1', module: 'Sensorial Materials', title: 'Introduction to Sensorial Materials', type: 'video', url: 'https://www.youtube.com/embed/0z0M5DPfLT8', duration: '20 min', order: 4 },
+    { id: 'l5',  courseId: 'c2', module: 'Foundation & Basics', title: 'Fundamentals of English Communication', type: 'video', url: 'https://www.youtube.com/embed/yyNPlDL3GBs', duration: '25 min', order: 1 },
+    { id: 'l6',  courseId: 'c2', module: 'Pronunciation & Phonetics', title: 'English Pronunciation Guide', type: 'text', content: '<h3>English Pronunciation Basics</h3><p>Good pronunciation is key to effective communication.</p>', duration: '20 min', order: 2 },
+    { id: 'l7',  courseId: 'c2', module: 'Conversational English', title: 'Building Conversation Skills', type: 'video', url: 'https://www.youtube.com/embed/sW5QObM5CHA', duration: '30 min', order: 3 },
+    { id: 'l8',  courseId: 'c3', module: 'Phonemic Awareness', title: 'What is Phonemic Awareness?', type: 'video', url: 'https://www.youtube.com/embed/d0GNqEbMGZY', duration: '15 min', order: 1 },
+    { id: 'l9',  courseId: 'c3', module: 'Letter-Sound Correspondence', title: 'Teaching Letter Sounds A-Z', type: 'text', content: '<h3>Letter-Sound Correspondence</h3><p>Understanding that letters represent sounds in spoken words.</p>', duration: '18 min', order: 2 },
+    { id: 'l10', courseId: 'c3', module: 'Blending & Segmenting', title: 'Blending Sounds into Words', type: 'video', url: 'https://www.youtube.com/embed/RPTqBCdR1L4', duration: '20 min', order: 3 },
+    { id: 'l11', courseId: 'c4', module: 'Child Development Stages', title: "Piaget's Stages of Cognitive Development", type: 'video', url: 'https://www.youtube.com/embed/TRF27F2bn-A', duration: '22 min', order: 1 },
+    { id: 'l12', courseId: 'c4', module: 'Cognitive Development', title: 'Understanding How Children Learn', type: 'text', content: '<h3>How Children Learn</h3><p>Children build knowledge through active exploration and social interaction.</p>', duration: '25 min', order: 2 },
+    { id: 'l13', courseId: 'c4', module: 'Emotional & Social Development', title: 'Emotional Intelligence in Children', type: 'video', url: 'https://www.youtube.com/embed/Y7m9eNoB3NU', duration: '18 min', order: 3 },
+  ];
+  const existing = new Set(dbGet(DB.LESSONS).map(l => l.id));
+  const toAdd = coreLessons.filter(l => !existing.has(l.id));
+  if (toAdd.length) {
+    dbSet(DB.LESSONS, [...dbGet(DB.LESSONS), ...toAdd]);
+    console.log(`[migrate] Added ${toAdd.length} missing core lessons`);
+  }
+})();
+
+/* ---- Auto-attendance helper: called when student watches a recording ---- */
+function autoMarkAttendance(studentId, courseId, sessionDate) {
+  if (!studentId || !courseId || !sessionDate) return;
+  const date = sessionDate.split('T')[0]; // normalise to YYYY-MM-DD
+  const existing = getAttendance(courseId, date);
+  if (existing) {
+    // Update or add this student's record
+    const idx = existing.records.findIndex(r => r.studentId === studentId);
+    if (idx >= 0) {
+      if (existing.records[idx].status !== 'present') {
+        existing.records[idx].status = 'present';
+        existing.records[idx].autoMarked = true;
+        dbSave(DB.ATTENDANCE, existing);
+      }
+    } else {
+      existing.records.push({ studentId, status: 'present', autoMarked: true });
+      dbSave(DB.ATTENDANCE, existing);
+    }
+  } else {
+    saveAttendance(courseId, date, [{ studentId, status: 'present', autoMarked: true }]);
+  }
+}
+
 /* ---- Assessment helpers ---- */
 function getAssessmentResult(studentId, assessmentId) {
   return dbGet(DB.ASSESSMENT_RESULTS).find(r => r.studentId === studentId && r.assessmentId === assessmentId) || null;

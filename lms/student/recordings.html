@@ -172,9 +172,18 @@ function playVideo(id) {
   const embed  = toDriveEmbed(r.driveUrl);
   document.getElementById('video-title').textContent = r.title;
   document.getElementById('video-frame').src = embed;
+
+  // Auto-mark attendance when student watches a recording
+  let attendanceBadge = '';
+  if (user && r.courseId && r.date) {
+    autoMarkAttendance(user.id, r.courseId, r.date);
+    attendanceBadge = `&nbsp;|&nbsp;<span style="color:#0d9488;font-weight:600;">✅ Attendance marked</span>`;
+  }
+
   document.getElementById('video-meta').innerHTML = `
-    ${r.date ? `<span>📅 ${new Date(r.date).toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span> &nbsp;|&nbsp;` : ''}
-    ${r.description ? `<span>${r.description}</span>` : ''}`;
+    ${r.date ? `<span>📅 ${new Date(r.date).toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span>` : ''}
+    ${attendanceBadge}
+    ${r.description ? `&nbsp;|&nbsp;<span>${r.description}</span>` : ''}`;
   openModal('video-modal');
 }
 
