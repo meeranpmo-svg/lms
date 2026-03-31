@@ -68,10 +68,11 @@ async function sbSyncToLocal(userId, role) {
       _sb.from('expenses').select('*')
     ]);
     const admins  = dbGet(DB.USERS).filter(u => u.role === 'admin');
+    const localById = Object.fromEntries(dbGet(DB.USERS).map(u => [u.id, u]));
     const allUsers = [
       ...admins,
-      ...(students || []).map(_userToLocal),
-      ...(teachers || []).map(_userToLocal)
+      ...(students || []).map(u => _userToLocal(u, localById[u.id])),
+      ...(teachers || []).map(u => _userToLocal(u, localById[u.id]))
     ];
     dbSet(DB.USERS, allUsers);
     // Safe merge helper — local data always wins; remote only adds missing items
@@ -98,19 +99,23 @@ async function sbSyncToLocal(userId, role) {
     if (enr)      dbSet(DB.ENROLLMENTS, enr.map(_enrToLocal));
     if (students) {
       const others = dbGet(DB.USERS).filter(u => u.role !== 'student');
-      dbSet(DB.USERS, [...others, ...students.map(_userToLocal)]);
+      const localById = Object.fromEntries(dbGet(DB.USERS).map(u => [u.id, u]));
+      dbSet(DB.USERS, [...others, ...students.map(u => _userToLocal(u, localById[u.id]))]);
     }
   }
 }
 
 /* ── Data mappers ────────────────────────────────────────── */
-function _userToLocal(u) {
+function _userToLocal(u, existingLocal) {
+  // Preserve enrollmentNo from localStorage if Supabase doesn't have it yet
+  const existingEnrollmentNo = existingLocal?.enrollmentNo || '';
   return {
     id: u.id, name: u.name, email: u.email || '', username: u.username,
     password: u.password, role: u.role, avatar: u.avatar || '👩‍🎓',
     phone: u.phone || '', dob: u.dob || '', gender: u.gender || '',
     cnic: u.cnic || '', address: u.address || '',
-    fatherName: u.fathers_name || '', createdAt: u.created_at
+    fatherName: u.fathers_name || '', createdAt: u.created_at,
+    enrollmentNo: u.enrollment_no || existingEnrollmentNo
   };
 }
 function _enrToLocal(e) {
