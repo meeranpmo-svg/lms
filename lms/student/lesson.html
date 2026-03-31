@@ -211,6 +211,8 @@ function renderLesson(lessons, quiz, course) {
     </div>` : '<div class="empty-state"><div class="empty-icon">🎬</div><h3>No Lessons Yet</h3><p>Lessons will appear here once the teacher adds them</p></div>';
 
   document.getElementById('main-content-area').innerHTML = mainHtml;
+  // Load discussion for the current lesson after rendering
+  setTimeout(() => { if (currentLessonId) loadDiscussion(currentLessonId); }, 50);
 }
 
 function loadLesson(lessonId) {
@@ -502,12 +504,7 @@ function replyTo(postId, name) {
   if (input) { input.value = `@${name} `; input.focus(); }
 }
 
-// Re-load discussion whenever a lesson is rendered
-const _origRenderLesson = renderLesson;
-function renderLesson(lessons, quiz, course) {
-  _origRenderLesson(lessons, quiz, course);
-  setTimeout(() => { if (currentLessonId) loadDiscussion(currentLessonId); }, 50);
-}
+
 </script>
 </body>
 </html>
